@@ -1,0 +1,3295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Dashboard - Cornerstone Capital</title>
+    <meta name="description"
+        content="Manage your investments, view portfolio performance, and access all investment tools in your Cornerstone Capital dashboard.">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- QR Code Generator -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Meta Tags -->
+    <meta property="og:title" content="Cornerstone Capital - Investment Dashboard">
+    <meta property="og:description"
+        content="Professional investment management dashboard for Cornerstone Capital investors.">
+    <meta property="og:image" content="/img/logo.avif">
+    <meta property="og:url" content="https://cornerstonecapital.co.uk">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Cornerstone Capital">
+    <!-- Favicon -->
+    <link rel="icon" type="image/avif" href="/img/logo.avif">
+    <link rel="apple-touch-icon" href="/img/logo.avif">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --primary-dark: #1e40af;
+            --secondary: #059669;
+            --accent: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+            --error: #dc2626;
+            --info: #0284c7;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-glass: rgba(255, 255, 255, 0.95);
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-accent: #1e3a8a;
+            --border: #e2e8f0;
+            --border-light: #cbd5e1;
+            --gradient-primary: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            --gradient-secondary: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            --gradient-gold: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --gradient-crypto: linear-gradient(135deg, #f7931a 0%, #ff6b35 100%);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Dashboard Layout */
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            height: 100vh;
+            left: -280px;
+            transition: left 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--gradient-primary);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .sidebar-logo img {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+        }
+
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+
+        .nav-section-title {
+            padding: 0 1.5rem 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: rgba(30, 58, 138, 0.05);
+            color: var(--primary);
+            border-right: 3px solid var(--primary);
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .nav-badge {
+            background: var(--error);
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 50px;
+            margin-left: auto;
+        }
+
+        .user-profile {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            margin-top: auto;
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .profile-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            overflow: hidden;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .profile-details h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .profile-details p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-lg);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 0;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.sidebar-open {
+            margin-left: 280px;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: var(--radius-md);
+            transition: all 0.3s ease;
+        }
+
+        .menu-toggle:hover {
+            background: var(--bg-secondary);
+            color: var(--primary);
+        }
+
+        .top-bar-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'Playfair Display', serif;
+        }
+
+        .top-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .wallet-id-display {
+            background: var(--bg-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .notification-bell {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: var(--radius-md);
+            transition: all 0.3s ease;
+        }
+
+        .notification-bell:hover {
+            background: var(--bg-secondary);
+            color: var(--primary);
+        }
+
+        .notification-dot {
+            position: absolute;
+            top: 0.3rem;
+            right: 0.3rem;
+            width: 8px;
+            height: 8px;
+            background: var(--error);
+            border-radius: 50%;
+        }
+
+        /* Content Area */
+        .content-area {
+            padding: 2rem 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Welcome Message */
+        .welcome-banner {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 2rem;
+            border-radius: var(--radius-xl);
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(50%, -50%);
+        }
+
+        .welcome-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .welcome-subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .welcome-stat {
+            text-align: center;
+        }
+
+        .welcome-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .welcome-stat-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        /* Dashboard Cards */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: 'Playfair Display', serif;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .card-icon.wallet {
+            background: var(--gradient-primary);
+        }
+
+        .card-icon.investment {
+            background: var(--gradient-secondary);
+        }
+
+        .card-icon.profit {
+            background: var(--gradient-gold);
+        }
+
+        .card-icon.crypto {
+            background: var(--gradient-crypto);
+        }
+
+        /* Balance Display */
+        .balance-amount {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .balance-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .balance-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-success {
+            background: var(--gradient-secondary);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--gradient-gold);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Investment Plans */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .plan-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: 1.5rem;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .plan-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .plan-card.popular {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-md);
+        }
+
+        .plan-badge {
+            position: absolute;
+            top: -10px;
+            right: 1rem;
+            background: var(--gradient-secondary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .plan-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .plan-rate {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .plan-rate span {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .plan-details {
+            margin: 1rem 0;
+        }
+
+        .plan-detail {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .plan-detail-label {
+            color: var(--text-muted);
+        }
+
+        .plan-detail-value {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Tables */
+        .table-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .table-header {
+            background: var(--bg-secondary);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .table-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: 'Playfair Display', serif;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .table-content {
+            overflow-x: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .table td {
+            color: var(--text-primary);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(22, 163, 74, 0.1);
+            color: var(--success);
+        }
+
+        .status-completed {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+        }
+
+        .status-pending {
+            background: rgba(217, 119, 6, 0.1);
+            color: var(--warning);
+        }
+
+        .status-confirmed {
+            background: rgba(22, 163, 74, 0.1);
+            color: var(--success);
+        }
+
+        .status-failed {
+            background: rgba(220, 38, 38, 0.1);
+            color: var(--error);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state p {
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'Playfair Display', serif;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: var(--radius-md);
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            font-size: 1rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Crypto Selection */
+        .crypto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .crypto-option {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .crypto-option:hover,
+        .crypto-option.selected {
+            border-color: var(--primary);
+            background: rgba(30, 58, 138, 0.05);
+        }
+
+        .crypto-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .crypto-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .crypto-symbol {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* QR Code Container */
+        .qr-code-container {
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+
+        .qr-code {
+            margin: 1rem 0;
+            display: inline-block;
+        }
+
+        .wallet-address {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+
+        .copy-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-md);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            background: var(--bg-secondary);
+            border-radius: 50px;
+            height: 8px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            background: var(--gradient-primary);
+            height: 100%;
+            border-radius: 50px;
+            transition: width 0.3s ease;
+        }
+
+        /* Loading States */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(30, 58, 138, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-xl);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        /* Responsive Design */
+        @media (min-width: 640px) {
+            .balance-actions {
+                flex-wrap: nowrap;
+            }
+            .welcome-stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .welcome-title {
+                font-size: 2.2rem;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .sidebar {
+                position: static;
+                left: 0;
+            }
+            .main-content {
+                margin-left: 280px;
+            }
+            .menu-toggle {
+                display: none;
+            }
+            .dashboard-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .content-area {
+                padding: 2rem;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        /* Hidden by default */
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* Notification Styles */
+        .notification-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .notification-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .notification-item.unread {
+            background: rgba(30, 58, 138, 0.05);
+            border-left: 3px solid var(--primary);
+        }
+
+        .notification-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .notification-message {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .notification-time {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 1rem 0;
+        }
+
+        /* File Upload */
+        .file-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(30, 58, 138, 0.05);
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(30, 58, 138, 0.1);
+        }
+
+        /* Security Features */
+        .security-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--success);
+            margin-top: 0.5rem;
+        }
+
+        .security-indicator.warning {
+            color: var(--warning);
+        }
+
+        .security-indicator.error {
+            color: var(--error);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="index.html" class="sidebar-logo">
+                    <img src="/img/logo.avif" alt="Cornerstone Capital Logo">
+                    <span>Cornerstone Capital</span>
+                </a>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Dashboard</div>
+                    <a class="nav-item active" data-section="overview">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Overview</span>
+                    </a>
+                    <a class="nav-item" data-section="wallet">
+                        <i class="fas fa-wallet"></i>
+                        <span>Wallet</span>
+                    </a>
+                    <a class="nav-item" data-section="investments">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Investments</span>
+                        <span class="nav-badge" id="activeInvestmentsBadge">0</span>
+                    </a>
+                    <a class="nav-item" data-section="transactions">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>Transactions</span>
+                    </a>
+                    <a class="nav-item" data-section="analytics">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Analytics</span>
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Account</div>
+                    <a class="nav-item" data-section="profile">
+                        <i class="fas fa-user"></i>
+                        <span>Profile</span>
+                    </a>
+                    <a class="nav-item" data-section="security">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Security</span>
+                    </a>
+                    <a class="nav-item" data-section="support">
+                        <i class="fas fa-headset"></i>
+                        <span>Support</span>
+                    </a>
+                    <a class="nav-item" href="index.html">
+                        <i class="fas fa-home"></i>
+                        <span>Homepage</span>
+                    </a>
+                </div>
+            </nav>
+            <div class="user-profile">
+                <div class="profile-info">
+                    <div class="profile-avatar" id="profileAvatar">
+                        <span id="avatarInitials">U</span>
+                    </div>
+                    <div class="profile-details">
+                        <h4 id="userName">Loading...</h4>
+                        <p id="userEmail">Loading...</p>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Sign Out
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="top-bar-title" id="pageTitle">Dashboard Overview</h1>
+                <div class="top-bar-actions">
+                    <button class="notification-bell" onclick="toggleNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <div class="notification-dot" id="notificationDot" style="display: none;"></div>
+                    </button>
+                    <div class="wallet-id-display">
+                        Wallet ID: <span id="walletIdDisplay">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Overview Section -->
+                <div class="content-section active" id="overview-section">
+                    <!-- Welcome Banner -->
+                    <div class="welcome-banner fade-in-up">
+                        <div class="welcome-content">
+                            <h2 class="welcome-title" id="welcomeTitle">Welcome back, Investor!</h2>
+                            <p class="welcome-subtitle" id="welcomeSubtitle">Here's your investment portfolio overview</p>
+                            <div class="welcome-stats">
+                                <div class="welcome-stat">
+                                    <div class="welcome-stat-value" id="welcomeTotalBalance">$0.00</div>
+                                    <div class="welcome-stat-label">Total Balance</div>
+                                </div>
+                                <div class="welcome-stat">
+                                    <div class="welcome-stat-value" id="welcomeActiveInvestments">0</div>
+                                    <div class="welcome-stat-label">Active Investments</div>
+                                </div>
+                                <div class="welcome-stat">
+                                    <div class="welcome-stat-value" id="welcomeTotalProfits">$0.00</div>
+                                    <div class="welcome-stat-label">Total Profits</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Cards -->
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3 class="card-title">Wallet Balance</h3>
+                                    <div class="balance-amount" id="walletBalance">$0.00</div>
+                                    <div class="balance-subtitle">Available for investment</div>
+                                </div>
+                                <div class="card-icon wallet">
+                                    <i class="fas fa-wallet"></i>
+                                </div>
+                            </div>
+                            <div class="balance-actions">
+                                <button class="btn btn-primary" onclick="showDepositModal()">
+                                    <i class="fas fa-plus"></i>
+                                    Deposit
+                                </button>
+                                <button class="btn btn-secondary" onclick="showWithdrawModal()">
+                                    <i class="fas fa-minus"></i>
+                                    Withdraw
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3 class="card-title">Active Investments</h3>
+                                    <div class="balance-amount" id="activeInvestments">0</div>
+                                    <div class="balance-subtitle">Total Invested: <span id="totalInvested">$0.00</span></div>
+                                </div>
+                                <div class="card-icon investment">
+                                    <i class="fas fa-chart-pie"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3 class="card-title">Total Profits</h3>
+                                    <div class="balance-amount" id="totalProfits">$0.00</div>
+                                    <div class="balance-subtitle">Expected: <span id="expectedProfits">$0.00</span></div>
+                                </div>
+                                <div class="card-icon profit">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3 class="card-title">Portfolio Growth</h3>
+                                    <div class="balance-amount" id="portfolioGrowth">+0.00%</div>
+                                    <div class="balance-subtitle">This month</div>
+                                </div>
+                                <div class="card-icon crypto">
+                                    <i class="fas fa-trending-up"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Investment Plans -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Investment Plans</h3>
+                            <button class="btn btn-secondary" onclick="refreshPlans()">
+                                <i class="fas fa-sync-alt"></i>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="plans-grid">
+                            <div class="plan-card" onclick="selectInvestmentPlan('basic')">
+                                <h4 class="plan-name">Basic Plan</h4>
+                                <div class="plan-rate">2.5<span>% Daily</span></div>
+                                <div class="plan-details">
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Duration:</span>
+                                        <span class="plan-detail-value">6 Days</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Min Deposit:</span>
+                                        <span class="plan-detail-value">$200</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Max Deposit:</span>
+                                        <span class="plan-detail-value">$9,999</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Total Return:</span>
+                                        <span class="plan-detail-value">115%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="plan-card popular" onclick="selectInvestmentPlan('economy')">
+                                <div class="plan-badge">Popular</div>
+                                <h4 class="plan-name">Economy Plan</h4>
+                                <div class="plan-rate">3.0<span>% Daily</span></div>
+                                <div class="plan-details">
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Duration:</span>
+                                        <span class="plan-detail-value">10 Days</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Min Deposit:</span>
+                                        <span class="plan-detail-value">$10,000</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Max Deposit:</span>
+                                        <span class="plan-detail-value">$29,999</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Total Return:</span>
+                                        <span class="plan-detail-value">130%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="plan-card" onclick="selectInvestmentPlan('business')">
+                                <h4 class="plan-name">Business Plan</h4>
+                                <div class="plan-rate">4.0<span>% Daily</span></div>
+                                <div class="plan-details">
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Duration:</span>
+                                        <span class="plan-detail-value">15 Days</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Min Deposit:</span>
+                                        <span class="plan-detail-value">$30,000</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Max Deposit:</span>
+                                        <span class="plan-detail-value">$49,999</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Total Return:</span>
+                                        <span class="plan-detail-value">160%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="plan-card" onclick="selectInvestmentPlan('universal')">
+                                <div class="plan-badge">Premium</div>
+                                <h4 class="plan-name">Universal Plan</h4>
+                                <div class="plan-rate">4.7<span>% Daily</span></div>
+                                <div class="plan-details">
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Duration:</span>
+                                        <span class="plan-detail-value">30 Days</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Min Deposit:</span>
+                                        <span class="plan-detail-value">$50,000</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Max Deposit:</span>
+                                        <span class="plan-detail-value">Unlimited</span>
+                                    </div>
+                                    <div class="plan-detail">
+                                        <span class="plan-detail-label">Total Return:</span>
+                                        <span class="plan-detail-value">241%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Recent Activity</h3>
+                            <button class="btn btn-secondary" onclick="switchSection('transactions')">
+                                <i class="fas fa-eye"></i>
+                                View All
+                            </button>
+                        </div>
+                        <div id="recentActivityContainer">
+                            <!-- Recent activity will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wallet Section -->
+                <div class="content-section" id="wallet-section">
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">USD Balance</h3>
+                                <div class="card-icon wallet">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </div>
+                            </div>
+                            <div class="balance-amount" id="walletBalanceUSD">$0.00</div>
+                            <div class="balance-subtitle">Available for investment</div>
+                            <div class="balance-actions">
+                                <button class="btn btn-primary" onclick="showDepositModal()">
+                                    <i class="fas fa-plus"></i>
+                                    Deposit Funds
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Pending Deposits</h3>
+                                <div class="card-icon crypto">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                            <div class="balance-amount" id="pendingDeposits">$0.00</div>
+                            <div class="balance-subtitle">Awaiting confirmation</div>
+                            <div class="balance-actions">
+                                <button class="btn btn-secondary" onclick="refreshDeposits()">
+                                    <i class="fas fa-sync-alt"></i>
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Total Withdrawn</h3>
+                                <div class="card-icon profit">
+                                    <i class="fas fa-arrow-up"></i>
+                                </div>
+                            </div>
+                            <div class="balance-amount" id="totalWithdrawn">$0.00</div>
+                            <div class="balance-subtitle">Lifetime withdrawals</div>
+                            <div class="balance-actions">
+                                <button class="btn btn-warning" onclick="showWithdrawModal()">
+                                    <i class="fas fa-minus"></i>
+                                    Withdraw Funds
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deposit History -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">Deposit History</h3>
+                            <div class="table-actions">
+                                <button class="btn btn-secondary" onclick="exportDeposits()">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-content">
+                            <table class="table" id="depositsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Cryptocurrency</th>
+                                        <th>Transaction Hash</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="depositsTableBody">
+                                    <!-- Deposits will be loaded here -->
+                                </tbody>
+                            </table>
+                            <div class="empty-state" id="depositsEmptyState" style="display: none;">
+                                <i class="fas fa-wallet"></i>
+                                <h3>No Deposits Yet</h3>
+                                <p>Start by making your first deposit to begin investing</p>
+                                <button class="btn btn-primary" onclick="showDepositModal()">
+                                    <i class="fas fa-plus"></i>
+                                    Make First Deposit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Investments Section -->
+                <div class="content-section" id="investments-section">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">My Investments</h3>
+                            <div class="table-actions">
+                                <button class="btn btn-primary" onclick="switchSection('overview')">
+                                    <i class="fas fa-plus"></i>
+                                    New Investment
+                                </button>
+                                <button class="btn btn-secondary" onclick="exportInvestments()">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-content">
+                            <table class="table" id="investmentsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Plan</th>
+                                        <th>Amount</th>
+                                        <th>Daily Rate</th>
+                                        <th>Duration</th>
+                                        <th>Progress</th>
+                                        <th>Current Profit</th>
+                                        <th>Expected Return</th>
+                                        <th>Status</th>
+                                        <th>End Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="investmentsTableBody">
+                                    <!-- Investments will be loaded here -->
+                                </tbody>
+                            </table>
+                            <div class="empty-state" id="investmentsEmptyState" style="display: none;">
+                                <i class="fas fa-chart-pie"></i>
+                                <h3>No Investments Yet</h3>
+                                <p>Start investing to see your portfolio here</p>
+                                <button class="btn btn-primary" onclick="switchSection('overview')">
+                                    <i class="fas fa-plus"></i>
+                                    Start Investing
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transactions Section -->
+                <div class="content-section" id="transactions-section">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">Transaction History</h3>
+                            <div class="table-actions">
+                                <select class="form-select" id="transactionFilter" onchange="filterTransactions()">
+                                    <option value="all">All Transactions</option>
+                                    <option value="deposit">Deposits</option>
+                                    <option value="withdrawal">Withdrawals</option>
+                                    <option value="investment">Investments</option>
+                                    <option value="profit">Profits</option>
+                                </select>
+                                <button class="btn btn-secondary" onclick="exportTransactions()">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-content">
+                            <table class="table" id="transactionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Reference</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsTableBody">
+                                    <!-- Transactions will be loaded here -->
+                                </tbody>
+                            </table>
+                            <div class="empty-state" id="transactionsEmptyState" style="display: none;">
+                                <i class="fas fa-exchange-alt"></i>
+                                <h3>No Transactions Yet</h3>
+                                <p>Your transaction history will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Section -->
+                <div class="content-section" id="analytics-section">
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Portfolio Performance</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="portfolioChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Investment Distribution</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="distributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Monthly Earnings</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="earningsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Section -->
+                <div class="content-section" id="profile-section">
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Profile Information</h3>
+                            </div>
+                            <form id="profileForm">
+                                <div class="form-group">
+                                    <label class="form-label" for="profileTitle">Title</label>
+                                    <select id="profileTitle" class="form-select">
+                                        <option value="">Select Title</option>
+                                        <option value="Mr">Mr</option>
+                                        <option value="Mrs">Mrs</option>
+                                        <option value="Miss">Miss</option>
+                                        <option value="Ms">Ms</option>
+                                        <option value="Dr">Dr</option>
+                                        <option value="Prof">Prof</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="profileFirstName">First Name</label>
+                                    <input type="text" id="profileFirstName" class="form-input"
+                                        placeholder="Enter your first name">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="profileLastName">Last Name</label>
+                                    <input type="text" id="profileLastName" class="form-input"
+                                        placeholder="Enter your last name">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="profileEmail">Email Address</label>
+                                    <input type="email" id="profileEmail" class="form-input"
+                                        placeholder="Enter your email" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="profilePhone">Phone Number</label>
+                                    <input type="tel" id="profilePhone" class="form-input"
+                                        placeholder="Enter your phone number">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="profileDateOfBirth">Date of Birth</label>
+                                    <input type="date" id="profileDateOfBirth" class="form-input">
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    Update Profile
+                                </button>
+                            </form>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Profile Picture</h3>
+                            </div>
+                            <div class="file-upload-area" id="profilePictureUpload">
+                                <i class="fas fa-camera"
+                                    style="font-size: 2rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                                <p>Click to upload or drag and drop</p>
+                                <p style="font-size: 0.8rem; color: var(--text-muted);">PNG, JPG up to 5MB</p>
+                                <input type="file" id="profilePictureInput" accept="image/*" style="display: none;">
+                            </div>
+                            <div class="security-indicator" id="profilePictureStatus">
+                                <i class="fas fa-info-circle"></i>
+                                <span>No profile picture uploaded</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Section -->
+                <div class="content-section" id="security-section">
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Transaction PIN</h3>
+                            </div>
+                            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                                Set up a 6-digit PIN to secure your transactions and withdrawals.
+                            </p>
+                            <button class="btn btn-primary" onclick="showSetPinModal()" id="setPinBtn">
+                                <i class="fas fa-lock"></i>
+                                Set Transaction PIN
+                            </button>
+                            <div class="security-indicator" id="pinStatus">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>Transaction PIN not set</span>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Account Security</h3>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Two-Factor Authentication</label>
+                                <button class="btn btn-secondary" onclick="setup2FA()">
+                                    <i class="fas fa-mobile-alt"></i>
+                                    Enable 2FA
+                                </button>
+                                <div class="security-indicator warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>2FA not enabled</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Change Password</label>
+                                <button class="btn btn-secondary" onclick="showChangePasswordModal()">
+                                    <i class="fas fa-key"></i>
+                                    Change Password
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Login Activity</h3>
+                            </div>
+                            <div id="loginActivityContainer">
+                                <!-- Login activity will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Support Section -->
+                <div class="content-section" id="support-section">
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Contact Support</h3>
+                            </div>
+                            <form id="supportForm">
+                                <div class="form-group">
+                                    <label class="form-label" for="supportSubject">Subject</label>
+                                    <select id="supportSubject" class="form-select">
+                                        <option value="">Select a topic</option>
+                                        <option value="deposit">Deposit Issues</option>
+                                        <option value="withdrawal">Withdrawal Issues</option>
+                                        <option value="investment">Investment Questions</option>
+                                        <option value="account">Account Issues</option>
+                                        <option value="technical">Technical Support</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="supportMessage">Message</label>
+                                    <textarea id="supportMessage" class="form-textarea"
+                                        placeholder="Describe your issue or question in detail..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i>
+                                    Send Message
+                                </button>
+                            </form>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Quick Help</h3>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                <button class="btn btn-secondary" onclick="openFAQ()">
+                                    <i class="fas fa-question-circle"></i>
+                                    Frequently Asked Questions
+                                </button>
+                                <button class="btn btn-secondary" onclick="openLiveChat()">
+                                    <i class="fas fa-comments"></i>
+                                    Live Chat Support
+                                </button>
+                                <button class="btn btn-secondary" onclick="downloadGuide()">
+                                    <i class="fas fa-download"></i>
+                                    Investment Guide
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Support Tickets -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3 class="table-title">My Support Tickets</h3>
+                        </div>
+                        <div class="table-content">
+                            <table class="table" id="supportTicketsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket ID</th>
+                                        <th>Subject</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Last Updated</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="supportTicketsTableBody">
+                                    <!-- Support tickets will be loaded here -->
+                                </tbody>
+                            </table>
+                            <div class="empty-state" id="supportTicketsEmptyState" style="display: none;">
+                                <i class="fas fa-headset"></i>
+                                <h3>No Support Tickets</h3>
+                                <p>You haven't created any support tickets yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Deposit Modal -->
+    <div class="modal-overlay" id="depositModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Deposit Funds</h3>
+                <button class="modal-close" onclick="closeModal('depositModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Select Cryptocurrency</label>
+                <div class="crypto-grid">
+                    <div class="crypto-option" data-crypto="btc" onclick="selectCrypto('btc')">
+                        <div class="crypto-icon">₿</div>
+                        <div class="crypto-name">Bitcoin</div>
+                        <div class="crypto-symbol">BTC</div>
+                    </div>
+                    <div class="crypto-option" data-crypto="usdt" onclick="selectCrypto('usdt')">
+                        <div class="crypto-icon">₮</div>
+                        <div class="crypto-name">Tether</div>
+                        <div class="crypto-symbol">USDT</div>
+                    </div>
+                    <div class="crypto-option" data-crypto="usdc" onclick="selectCrypto('usdc')">
+                        <div class="crypto-icon">$</div>
+                        <div class="crypto-name">USD Coin</div>
+                        <div class="crypto-symbol">USDC</div>
+                    </div>
+                    <div class="crypto-option" data-crypto="trx" onclick="selectCrypto('trx')">
+                        <div class="crypto-icon">◊</div>
+                        <div class="crypto-name">Tron</div>
+                        <div class="crypto-symbol">TRX</div>
+                    </div>
+                </div>
+            </div>
+            <div id="depositDetails" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label" for="depositAmount">Amount (USD)</label>
+                    <input type="number" id="depositAmount" class="form-input" placeholder="Enter amount in USD"
+                        min="10" step="0.01">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Minimum deposit: $10.00
+                    </div>
+                </div>
+                <div class="qr-code-container">
+                    <p>Send <span id="selectedCryptoName">cryptocurrency</span> to the address below:</p>
+                    <div class="qr-code" id="depositQRCode"></div>
+                    <div class="wallet-address" id="depositAddress">
+                        <!-- Address will be populated here -->
+                    </div>
+                    <button class="copy-btn" onclick="copyToClipboard('depositAddress')">
+                        <i class="fas fa-copy"></i>
+                        Copy Address
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="transactionHash">Transaction Hash (Optional)</label>
+                    <input type="text" id="transactionHash" class="form-input"
+                        placeholder="Paste transaction hash after sending">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        You can add this later from your wallet section
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="submitDeposit()">
+                    <i class="fas fa-check"></i>
+                    Confirm Deposit
+                </button>
+                <div
+                    style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-lg); margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
+                    <strong>Important:</strong> Your deposit will be credited to your account after manual confirmation
+                    by our team. This usually takes 1-24 hours after we receive your payment.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div class="modal-overlay" id="withdrawModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Withdraw Funds</h3>
+                <button class="modal-close" onclick="closeModal('withdrawModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="withdrawForm">
+                <div class="form-group">
+                    <label class="form-label" for="withdrawAmount">Amount (USD)</label>
+                    <input type="number" id="withdrawAmount" class="form-input" placeholder="Enter amount to withdraw"
+                        min="10" step="0.01">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Available balance: $<span id="availableBalance">0.00</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Select Cryptocurrency</label>
+                    <div class="crypto-grid">
+                        <div class="crypto-option" data-crypto="btc" onclick="selectWithdrawCrypto('btc')">
+                            <div class="crypto-icon">₿</div>
+                            <div class="crypto-name">Bitcoin</div>
+                            <div class="crypto-symbol">BTC</div>
+                        </div>
+                        <div class="crypto-option" data-crypto="usdt" onclick="selectWithdrawCrypto('usdt')">
+                            <div class="crypto-icon">₮</div>
+                            <div class="crypto-name">Tether</div>
+                            <div class="crypto-symbol">USDT</div>
+                        </div>
+                        <div class="crypto-option" data-crypto="usdc" onclick="selectWithdrawCrypto('usdc')">
+                            <div class="crypto-icon">$</div>
+                            <div class="crypto-name">USD Coin</div>
+                            <div class="crypto-symbol">USDC</div>
+                        </div>
+                        <div class="crypto-option" data-crypto="trx" onclick="selectWithdrawCrypto('trx')">
+                            <div class="crypto-icon">◊</div>
+                            <div class="crypto-name">Tron</div>
+                            <div class="crypto-symbol">TRX</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="withdrawAddress">Wallet Address</label>
+                    <input type="text" id="withdrawAddress" class="form-input" placeholder="Enter your wallet address">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="withdrawPin">Transaction PIN</label>
+                    <input type="password" id="withdrawPin" class="form-input" placeholder="Enter your 6-digit PIN"
+                        maxlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i>
+                    Submit Withdrawal
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Investment Modal -->
+    <div class="modal-overlay" id="investmentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="investmentModalTitle">Investment Plan</h3>
+                <button class="modal-close" onclick="closeModal('investmentModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="investmentForm">
+                <div class="form-group">
+                    <label class="form-label" for="investmentAmount">Investment Amount (USD)</label>
+                    <input type="number" id="investmentAmount" class="form-input" placeholder="Enter investment amount"
+                        min="200" step="0.01">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Available balance: $<span id="investmentAvailableBalance">0.00</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Plan Details</label>
+                    <div id="investmentPlanDetails">
+                        <!-- Plan details will be populated here -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Expected Returns</label>
+                    <div id="investmentCalculator"
+                        style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>Daily Profit:</span>
+                            <strong id="calculatedDailyProfit">$0.00</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>Total Profit:</span>
+                            <strong id="calculatedTotalProfit">$0.00</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Total Return:</span>
+                            <strong id="calculatedTotalReturn" style="color: var(--success);">$0.00</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="investmentPin">Transaction PIN</label>
+                    <input type="password" id="investmentPin" class="form-input" placeholder="Enter your 6-digit PIN"
+                        maxlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-chart-line"></i>
+                    Start Investment
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Set PIN Modal -->
+    <div class="modal-overlay" id="setPinModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Set Transaction PIN</h3>
+                <button class="modal-close" onclick="closeModal('setPinModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="setPinForm">
+                <div class="form-group">
+                    <label class="form-label" for="newPin">New PIN (6 digits)</label>
+                    <input type="password" id="newPin" class="form-input" placeholder="Enter 6-digit PIN" maxlength="6"
+                        pattern="[0-9]{6}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="confirmPin">Confirm PIN</label>
+                    <input type="password" id="confirmPin" class="form-input" placeholder="Confirm your PIN"
+                        maxlength="6" pattern="[0-9]{6}">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-lock"></i>
+                    Set PIN
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal-overlay" id="changePasswordModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Change Password</h3>
+                <button class="modal-close" onclick="closeModal('changePasswordModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="changePasswordForm">
+                <div class="form-group">
+                    <label class="form-label" for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" class="form-input" placeholder="Enter current password">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" class="form-input" placeholder="Enter new password">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="confirmNewPassword">Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" class="form-input"
+                        placeholder="Confirm new password">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-key"></i>
+                    Change Password
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Panel -->
+    <div class="modal-overlay" id="notificationPanel">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Notifications</h3>
+                <button class="modal-close" onclick="closeModal('notificationPanel')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="notificationsList">
+                <!-- Notifications will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBkuXPDG6ErewsMeDaVIWel1x-dX73ESeA",
+            authDomain: "cornerstone-capital-eead9.firebaseapp.com",
+            projectId: "cornerstone-capital-eead9",
+            storageBucket: "cornerstone-capital-eead9.firebasestorage.app",
+            messagingSenderId: "749574969719",
+            appId: "1:749574969719:web:2d5330b9d4223559cf6972",
+            measurementId: "G-F5KLSSVCR7"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Global variables
+        let currentUser = null;
+        let userData = null;
+        let currentSection = 'overview';
+        let selectedPlan = null;
+        let selectedCrypto = null;
+        let selectedWithdrawCrypto = null;
+        let portfolioChart = null;
+        let distributionChart = null;
+        let earningsChart = null;
+
+        // Cryptocurrency wallet addresses
+        const cryptoWallets = {
+            btc: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+            usdt: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5CNYC7F',
+            usdc: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
+            trx: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5CNYC7F'
+        };
+
+        // Investment plans configuration
+        const investmentPlans = {
+            basic: {
+                name: 'Basic Plan',
+                rate: 2.5,
+                duration: 6,
+                minAmount: 200,
+                maxAmount: 9999,
+                totalReturn: 115
+            },
+            economy: {
+                name: 'Economy Plan',
+                rate: 3.0,
+                duration: 10,
+                minAmount: 10000,
+                maxAmount: 29999,
+                totalReturn: 130
+            },
+            business: {
+                name: 'Business Plan',
+                rate: 4.0,
+                duration: 15,
+                minAmount: 30000,
+                maxAmount: 49999,
+                totalReturn: 160
+            },
+            universal: {
+                name: 'Universal Plan',
+                rate: 4.7,
+                duration: 30,
+                minAmount: 50000,
+                maxAmount: Infinity,
+                totalReturn: 241
+            }
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function () {
+            setupEventListeners();
+            checkAuthState();
+            initializeCharts();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Menu toggle
+            document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+
+            // Navigation items
+            document.querySelectorAll('.nav-item[data-section]').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const section = item.getAttribute('data-section');
+                    switchSection(section);
+                });
+            });
+
+            // Forms
+            document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+            document.getElementById('withdrawForm').addEventListener('submit', handleWithdraw);
+            document.getElementById('investmentForm').addEventListener('submit', handleInvestment);
+            document.getElementById('setPinForm').addEventListener('submit', handleSetPin);
+            document.getElementById('changePasswordForm').addEventListener('submit', handleChangePassword);
+            document.getElementById('supportForm').addEventListener('submit', handleSupportSubmit);
+
+            // Profile picture upload
+            document.getElementById('profilePictureUpload').addEventListener('click', () => {
+                document.getElementById('profilePictureInput').click();
+            });
+            document.getElementById('profilePictureInput').addEventListener('change', handleProfilePictureUpload);
+
+            // Investment amount calculator
+            document.getElementById('investmentAmount').addEventListener('input', calculateInvestmentReturns);
+
+            // Modal close on overlay click
+            document.querySelectorAll('.modal-overlay').forEach(overlay => {
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        overlay.classList.remove('show');
+                    }
+                });
+            });
+
+            // Drag and drop for profile picture
+            const uploadArea = document.getElementById('profilePictureUpload');
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleProfilePictureFile(files[0]);
+                }
+            });
+        }
+
+        // Check authentication state
+        function checkAuthState() {
+            auth.onAuthStateChanged(async (user) => {
+                if (user && user.emailVerified) {
+                    currentUser = user;
+                    await loadUserData();
+                    updateUI();
+                    showWelcomeMessage();
+                } else {
+                    // Redirect to login if not authenticated
+                    window.location.href = 'client_login.html';
+                }
+            });
+        }
+
+        // Load user data from Firestore
+        async function loadUserData() {
+            try {
+                const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                if (userDoc.exists) {
+                    userData = userDoc.data();
+                    console.log('User data loaded:', userData);
+                } else {
+                    console.error('User document not found');
+                    // Create user document if it doesn't exist
+                    await createUserDocument();
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        }
+
+        // Create user document if it doesn't exist
+        async function createUserDocument() {
+            try {
+                const walletId = generateWalletId();
+                const newUserData = {
+                    email: currentUser.email,
+                    fullName: currentUser.displayName || 'User',
+                    firstName: currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User',
+                    lastName: currentUser.displayName ? currentUser.displayName.split(' ').slice(1).join(' ') : '',
+                    walletId: walletId,
+                    walletBalance: 0,
+                    accountStatus: 'active',
+                    emailVerified: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+                    investments: [],
+                    transactions: [],
+                    deposits: [],
+                    withdrawals: [],
+                    notifications: [],
+                    supportTickets: []
+                };
+
+                await db.collection('users').doc(currentUser.uid).set(newUserData);
+                userData = newUserData;
+                console.log('User document created');
+            } catch (error) {
+                console.error('Error creating user document:', error);
+            }
+        }
+
+        // Show welcome message
+        function showWelcomeMessage() {
+            if (userData && userData.firstName) {
+                const firstName = userData.firstName;
+                const welcomeTitle = document.getElementById('welcomeTitle');
+                const welcomeSubtitle = document.getElementById('welcomeSubtitle');
+
+                welcomeTitle.textContent = `Welcome back, Investor ${firstName}!`;
+
+                const currentHour = new Date().getHours();
+                let greeting = 'Good day';
+                if (currentHour < 12) greeting = 'Good morning';
+                else if (currentHour < 18) greeting = 'Good afternoon';
+                else greeting = 'Good evening';
+
+                welcomeSubtitle.textContent = `${greeting}! Here's your investment portfolio overview`;
+            }
+        }
+
+        // Update UI with user data
+        function updateUI() {
+            if (!userData) return;
+
+            // Update profile info
+            const fullName = userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User';
+            document.getElementById('userName').textContent = fullName;
+            document.getElementById('userEmail').textContent = userData.email || '';
+            document.getElementById('walletIdDisplay').textContent = userData.walletId || 'N/A';
+
+            // Update avatar
+            const avatarElement = document.getElementById('profileAvatar');
+            const initialsElement = document.getElementById('avatarInitials');
+            if (userData.profilePicture) {
+                avatarElement.innerHTML = `<img src="${userData.profilePicture}" alt="Profile">`;
+            } else {
+                const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                initialsElement.textContent = initials;
+            }
+
+            // Update wallet balances
+            const balance = userData.walletBalance || 0;
+            document.getElementById('walletBalance').textContent = formatCurrency(balance);
+            document.getElementById('walletBalanceUSD').textContent = formatCurrency(balance);
+            document.getElementById('welcomeTotalBalance').textContent = formatCurrency(balance);
+            document.getElementById('availableBalance').textContent = balance.toFixed(2);
+            document.getElementById('investmentAvailableBalance').textContent = balance.toFixed(2);
+
+            // Update investment stats
+            const investments = userData.investments || [];
+            const deposits = userData.deposits || [];
+            const activeInvestments = investments.filter(inv => inv.status === 'active').length;
+            const totalInvested = investments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+            const totalProfits = investments.reduce((sum, inv) => sum + (inv.currentProfit || 0), 0);
+            const expectedProfits = investments.reduce((sum, inv) => sum + (inv.expectedProfit || 0), 0);
+            const pendingDepositsAmount = deposits.filter(dep => dep.status === 'pending').reduce((sum, dep) => sum + (dep.amount || 0), 0);
+            const totalWithdrawnAmount = (userData.withdrawals || []).filter(w => w.status === 'completed').reduce((sum, w) => sum + (w.amount || 0), 0);
+
+            document.getElementById('activeInvestments').textContent = activeInvestments;
+            document.getElementById('welcomeActiveInvestments').textContent = activeInvestments;
+            document.getElementById('activeInvestmentsBadge').textContent = activeInvestments;
+            document.getElementById('totalInvested').textContent = formatCurrency(totalInvested);
+            document.getElementById('totalProfits').textContent = formatCurrency(totalProfits);
+            document.getElementById('welcomeTotalProfits').textContent = formatCurrency(totalProfits);
+            document.getElementById('expectedProfits').textContent = formatCurrency(expectedProfits);
+            document.getElementById('pendingDeposits').textContent = formatCurrency(pendingDepositsAmount);
+            document.getElementById('totalWithdrawn').textContent = formatCurrency(totalWithdrawnAmount);
+
+            // Calculate portfolio growth
+            const portfolioGrowth = totalInvested > 0 ? ((totalProfits / totalInvested) * 100) : 0;
+            document.getElementById('portfolioGrowth').textContent = `+${portfolioGrowth.toFixed(2)}%`;
+
+            // Update profile form
+            document.getElementById('profileTitle').value = userData.title || '';
+            document.getElementById('profileFirstName').value = userData.firstName || '';
+            document.getElementById('profileLastName').value = userData.lastName || '';
+            document.getElementById('profileEmail').value = userData.email || '';
+            document.getElementById('profilePhone').value = userData.phone || '';
+            document.getElementById('profileDateOfBirth').value = userData.dateOfBirth || '';
+
+            // Update PIN button and status
+            const setPinBtn = document.getElementById('setPinBtn');
+            const pinStatus = document.getElementById('pinStatus');
+            if (userData.transactionPin) {
+                setPinBtn.innerHTML = '<i class="fas fa-edit"></i> Change Transaction PIN';
+                pinStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Transaction PIN is set</span>';
+                pinStatus.className = 'security-indicator';
+            } else {
+                setPinBtn.innerHTML = '<i class="fas fa-lock"></i> Set Transaction PIN';
+                pinStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Transaction PIN not set</span>';
+                pinStatus.className = 'security-indicator warning';
+            }
+
+            // Update profile picture status
+            const profilePictureStatus = document.getElementById('profilePictureStatus');
+            if (userData.profilePicture) {
+                profilePictureStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Profile picture uploaded</span>';
+                profilePictureStatus.className = 'security-indicator';
+            } else {
+                profilePictureStatus.innerHTML = '<i class="fas fa-info-circle"></i><span>No profile picture uploaded</span>';
+                profilePictureStatus.className = 'security-indicator warning';
+            }
+
+            // Load data for different sections
+            loadInvestments();
+            loadTransactions();
+            loadDeposits();
+            loadRecentActivity();
+            loadNotifications();
+            loadSupportTickets();
+            loadLoginActivity();
+            updateCharts();
+        }
+
+        // Generate wallet ID
+        function generateWalletId() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = 'CCS-';
+            for (let i = 0; i < 8; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return `$${(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        // Generate transaction ID
+        function generateTransactionId() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = 'TXN-';
+            for (let i = 0; i < 8; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            sidebar.classList.toggle('open');
+            mainContent.classList.toggle('sidebar-open');
+        }
+
+        // Switch sections
+        function switchSection(section) {
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const navItem = document.querySelector(`[data-section="${section}"]`);
+            if (navItem) navItem.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.content-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(`${section}-section`).classList.add('active');
+
+            // Update page title
+            const titles = {
+                overview: 'Dashboard Overview',
+                wallet: 'Wallet Management',
+                investments: 'My Investments',
+                transactions: 'Transaction History',
+                analytics: 'Portfolio Analytics',
+                profile: 'Profile Settings',
+                security: 'Security Settings',
+                support: 'Support Center'
+            };
+            document.getElementById('pageTitle').textContent = titles[section] || 'Dashboard';
+            currentSection = section;
+
+            // Load section-specific data
+            if (section === 'analytics') {
+                updateCharts();
+            }
+        }
+
+        // Show modals
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        function showDepositModal() {
+            // Reset form
+            document.querySelectorAll('.crypto-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.getElementById('depositDetails').style.display = 'none';
+            document.getElementById('depositAmount').value = '';
+            document.getElementById('transactionHash').value = '';
+            selectedCrypto = null;
+            showModal('depositModal');
+        }
+
+        function showWithdrawModal() {
+            if (!userData.transactionPin) {
+                Swal.fire({
+                    title: 'Transaction PIN Required',
+                    text: 'Please set up your transaction PIN first to make withdrawals.',
+                    icon: 'warning',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+            // Reset form
+            document.querySelectorAll('#withdrawModal .crypto-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            selectedWithdrawCrypto = null;
+            showModal('withdrawModal');
+        }
+
+        function showSetPinModal() {
+            showModal('setPinModal');
+        }
+
+        function showChangePasswordModal() {
+            showModal('changePasswordModal');
+        }
+
+        // Select cryptocurrency for deposit
+        function selectCrypto(crypto) {
+            selectedCrypto = crypto;
+            // Update UI
+            document.querySelectorAll('.crypto-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector(`[data-crypto="${crypto}"]`).classList.add('selected');
+
+            // Show deposit details
+            document.getElementById('depositDetails').style.display = 'block';
+            document.getElementById('selectedCryptoName').textContent = getCryptoName(crypto);
+
+            // Generate QR code and show address
+            generateDepositQR(crypto);
+        }
+
+        // Select cryptocurrency for withdrawal
+        function selectWithdrawCrypto(crypto) {
+            selectedWithdrawCrypto = crypto;
+            // Update UI
+            document.querySelectorAll('#withdrawModal .crypto-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector(`#withdrawModal [data-crypto="${crypto}"]`).classList.add('selected');
+        }
+
+        // Get cryptocurrency name
+        function getCryptoName(crypto) {
+            const names = {
+                btc: 'Bitcoin',
+                usdt: 'Tether',
+                usdc: 'USD Coin',
+                trx: 'Tron'
+            };
+            return names[crypto] || crypto.toUpperCase();
+        }
+
+        // Generate deposit QR code
+        function generateDepositQR(crypto) {
+            const address = cryptoWallets[crypto];
+            const qrContainer = document.getElementById('depositQRCode');
+            const addressContainer = document.getElementById('depositAddress');
+
+            // Clear previous QR code
+            qrContainer.innerHTML = '';
+
+            // Generate new QR code
+            QRCode.toCanvas(qrContainer, address, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#1e3a8a',
+                    light: '#ffffff'
+                }
+            }, function (error) {
+                if (error) console.error('QR Code generation error:', error);
+            });
+
+            // Update address
+            addressContainer.textContent = address;
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                Swal.fire({
+                    title: 'Copied!',
+                    text: 'Address copied to clipboard',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }).catch(err => {
+                console.error('Copy failed:', err);
+            });
+        }
+
+        // Submit deposit
+        async function submitDeposit() {
+            const amount = parseFloat(document.getElementById('depositAmount').value);
+            const transactionHash = document.getElementById('transactionHash').value.trim();
+
+            if (!selectedCrypto) {
+                Swal.fire({
+                    title: 'Cryptocurrency Required',
+                    text: 'Please select a cryptocurrency first.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (!amount || amount < 10) {
+                Swal.fire({
+                    title: 'Invalid Amount',
+                    text: 'Minimum deposit amount is $10.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            try {
+                const deposit = {
+                    id: generateTransactionId(),
+                    amount: amount,
+                    cryptocurrency: selectedCrypto,
+                    walletAddress: cryptoWallets[selectedCrypto],
+                    transactionHash: transactionHash || null,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email
+                };
+
+                // Add to user's deposits
+                await db.collection('users').doc(currentUser.uid).update({
+                    deposits: firebase.firestore.FieldValue.arrayUnion(deposit)
+                });
+
+                // Also add to global deposits collection for admin
+                await db.collection('deposits').add(deposit);
+
+                // Add notification
+                const notification = {
+                    id: generateTransactionId(),
+                    title: 'Deposit Submitted',
+                    message: `Your deposit of ${formatCurrency(amount)} has been submitted and is awaiting confirmation.`,
+                    type: 'deposit',
+                    status: 'unread',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await db.collection('users').doc(currentUser.uid).update({
+                    notifications: firebase.firestore.FieldValue.arrayUnion(notification)
+                });
+
+                closeModal('depositModal');
+                Swal.fire({
+                    title: 'Deposit Submitted!',
+                    html: `
+                        <div style="text-align: left;">
+                            <p><strong>Amount:</strong> ${formatCurrency(amount)}</p>
+                            <p><strong>Cryptocurrency:</strong> ${getCryptoName(selectedCrypto)}</p>
+                            <p><strong>Status:</strong> Pending Confirmation</p>
+                            <br>
+                            <p style="color: var(--text-secondary);">Your deposit will be credited to your account after manual confirmation by our team. This usually takes 1-24 hours.</p>
+                        </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+
+                // Reload user data
+                await loadUserData();
+                updateUI();
+            } catch (error) {
+                console.error('Deposit error:', error);
+                Swal.fire({
+                    title: 'Deposit Failed',
+                    text: 'Failed to submit deposit. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        }
+
+        // Handle withdrawal
+        async function handleWithdraw(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            const address = document.getElementById('withdrawAddress').value.trim();
+            const pin = document.getElementById('withdrawPin').value;
+
+            // Validation
+            if (!amount || amount < 10) {
+                Swal.fire({
+                    title: 'Invalid Amount',
+                    text: 'Minimum withdrawal amount is $10.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (amount > userData.walletBalance) {
+                Swal.fire({
+                    title: 'Insufficient Balance',
+                    text: 'You do not have enough balance for this withdrawal.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (!selectedWithdrawCrypto) {
+                Swal.fire({
+                    title: 'Cryptocurrency Required',
+                    text: 'Please select a cryptocurrency for withdrawal.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (!address) {
+                Swal.fire({
+                    title: 'Address Required',
+                    text: 'Please enter a valid wallet address.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (pin !== userData.transactionPin) {
+                Swal.fire({
+                    title: 'Invalid PIN',
+                    text: 'The transaction PIN you entered is incorrect.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            try {
+                const withdrawal = {
+                    id: generateTransactionId(),
+                    amount: amount,
+                    cryptocurrency: selectedWithdrawCrypto,
+                    walletAddress: address,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email
+                };
+
+                // Create transaction record
+                const transaction = {
+                    id: generateTransactionId(),
+                    type: 'withdrawal',
+                    amount: amount,
+                    status: 'pending',
+                    reference: withdrawal.id,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                // Update user document
+                await db.collection('users').doc(currentUser.uid).update({
+                    withdrawals: firebase.firestore.FieldValue.arrayUnion(withdrawal),
+                    transactions: firebase.firestore.FieldValue.arrayUnion(transaction),
+                    walletBalance: firebase.firestore.FieldValue.increment(-amount)
+                });
+
+                // Also add to global withdrawals collection for admin
+                await db.collection('withdrawals').add(withdrawal);
+
+                // Add notification
+                const notification = {
+                    id: generateTransactionId(),
+                    title: 'Withdrawal Submitted',
+                    message: `Your withdrawal of ${formatCurrency(amount)} has been submitted and will be processed within 24 hours.`,
+                    type: 'withdrawal',
+                    status: 'unread',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await db.collection('users').doc(currentUser.uid).update({
+                    notifications: firebase.firestore.FieldValue.arrayUnion(notification)
+                });
+
+                closeModal('withdrawModal');
+                document.getElementById('withdrawForm').reset();
+                Swal.fire({
+                    title: 'Withdrawal Submitted!',
+                    html: `
+                        <div style="text-align: left;">
+                            <p><strong>Amount:</strong> ${formatCurrency(amount)}</p>
+                            <p><strong>Cryptocurrency:</strong> ${getCryptoName(selectedWithdrawCrypto)}</p>
+                            <p><strong>Address:</strong> ${address.substring(0, 20)}...</p>
+                            <p><strong>Status:</strong> Pending Processing</p>
+                            <br>
+                            <p style="color: var(--text-secondary);">Your withdrawal will be processed within 24 hours.</p>
+                        </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+
+                // Reload user data
+                await loadUserData();
+                updateUI();
+            } catch (error) {
+                console.error('Withdrawal error:', error);
+                Swal.fire({
+                    title: 'Withdrawal Failed',
+                    text: 'Failed to process withdrawal. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        }
+
+        // Select investment plan
+        function selectInvestmentPlan(planType) {
+            selectedPlan = investmentPlans[planType];
+            document.getElementById('investmentModalTitle').textContent = selectedPlan.name;
+            document.getElementById('investmentAmount').min = selectedPlan.minAmount;
+            document.getElementById('investmentAmount').max = selectedPlan.maxAmount === Infinity ? '' : selectedPlan.maxAmount;
+
+            const detailsHTML = `
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Daily Rate:</span>
+                        <strong>${selectedPlan.rate}%</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Duration:</span>
+                        <strong>${selectedPlan.duration} days</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Min Amount:</span>
+                        <strong>${formatCurrency(selectedPlan.minAmount)}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Max Amount:</span>
+                        <strong>${selectedPlan.maxAmount === Infinity ? 'Unlimited' : formatCurrency(selectedPlan.maxAmount)}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Total Return:</span>
+                        <strong style="color: var(--success);">${selectedPlan.totalReturn}%</strong>
+                    </div>
+                </div>
+            `;
+            document.getElementById('investmentPlanDetails').innerHTML = detailsHTML;
+
+            // Clear and recalculate
+            document.getElementById('investmentAmount').value = '';
+            calculateInvestmentReturns();
+            showModal('investmentModal');
+        }
+
+        // Calculate investment returns
+        function calculateInvestmentReturns() {
+            if (!selectedPlan) return;
+
+            const amount = parseFloat(document.getElementById('investmentAmount').value) || 0;
+            const dailyRate = selectedPlan.rate / 100;
+            const duration = selectedPlan.duration;
+
+            const dailyProfit = amount * dailyRate;
+            const totalProfit = dailyProfit * duration;
+            const totalReturn = amount + totalProfit;
+
+            document.getElementById('calculatedDailyProfit').textContent = formatCurrency(dailyProfit);
+            document.getElementById('calculatedTotalProfit').textContent = formatCurrency(totalProfit);
+            document.getElementById('calculatedTotalReturn').textContent = formatCurrency(totalReturn);
+        }
+
+        // Handle investment
+        async function handleInvestment(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('investmentAmount').value);
+            const pin = document.getElementById('investmentPin').value;
+
+            // Validation
+            if (!amount || amount < selectedPlan.minAmount || amount > selectedPlan.maxAmount) {
+                Swal.fire({
+                    title: 'Invalid Amount',
+                    text: `Investment amount must be between ${formatCurrency(selectedPlan.minAmount)} and ${selectedPlan.maxAmount === Infinity ? 'unlimited' : formatCurrency(selectedPlan.maxAmount)}.`,
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (amount > userData.walletBalance) {
+                Swal.fire({
+                    title: 'Insufficient Balance',
+                    text: 'You do not have enough balance for this investment.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (!userData.transactionPin) {
+                Swal.fire({
+                    title: 'PIN Required',
+                    text: 'Please set up your transaction PIN first.',
+                    icon: 'warning',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (pin !== userData.transactionPin) {
+                Swal.fire({
+                    title: 'Invalid PIN',
+                    text: 'The transaction PIN you entered is incorrect.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            try {
+                // Calculate returns
+                const dailyRate = selectedPlan.rate / 100;
+                const duration = selectedPlan.duration;
+                const dailyProfit = amount * dailyRate;
+                const totalProfit = dailyProfit * duration;
+                const totalReturn = amount + totalProfit;
+
+                // Create investment
+                const investment = {
+                    id: generateTransactionId(),
+                    planType: Object.keys(investmentPlans).find(key => investmentPlans[key] === selectedPlan),
+                    planName: selectedPlan.name,
+                    amount: amount,
+                    dailyRate: selectedPlan.rate,
+                    duration: selectedPlan.duration,
+                    dailyProfit: dailyProfit,
+                    totalProfit: totalProfit,
+                    expectedReturn: totalReturn,
+                    currentProfit: 0,
+                    daysCompleted: 0,
+                    status: 'active',
+                    startDate: firebase.firestore.FieldValue.serverTimestamp(),
+                    endDate: new Date(Date.now() + duration * 24 * 60 * 60 * 1000),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                // Create transaction record
+                const transaction = {
+                    id: generateTransactionId(),
+                    type: 'investment',
+                    amount: amount,
+                    status: 'completed',
+                    reference: investment.id,
+                    details: `Investment in ${selectedPlan.name}`,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                // Update user document
+                await db.collection('users').doc(currentUser.uid).update({
+                    investments: firebase.firestore.FieldValue.arrayUnion(investment),
+                    transactions: firebase.firestore.FieldValue.arrayUnion(transaction),
+                    walletBalance: firebase.firestore.FieldValue.increment(-amount)
+                });
+
+                // Add notification
+                const notification = {
+                    id: generateTransactionId(),
+                    title: 'Investment Started',
+                    message: `Your ${selectedPlan.name} investment of ${formatCurrency(amount)} has been activated successfully.`,
+                    type: 'investment',
+                    status: 'unread',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await db.collection('users').doc(currentUser.uid).update({
+                    notifications: firebase.firestore.FieldValue.arrayUnion(notification)
+                });
+
+                closeModal('investmentModal');
+                document.getElementById('investmentForm').reset();
+                Swal.fire({
+                    title: 'Investment Started!',
+                    html: `
+                        <div style="text-align: left;">
+                            <p><strong>Plan:</strong> ${selectedPlan.name}</p>
+                            <p><strong>Amount:</strong> ${formatCurrency(amount)}</p>
+                            <p><strong>Daily Profit:</strong> ${formatCurrency(dailyProfit)}</p>
+                            <p><strong>Duration:</strong> ${duration} days</p>
+                            <p><strong>Expected Return:</strong> ${formatCurrency(totalReturn)}</p>
+                            <br>
+                            <p style="color: var(--success);">Your investment is now active and earning daily profits!</p>
+                        </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+
+                // Reload user data
+                await loadUserData();
+                updateUI();
+            } catch (error) {
+                console.error('Investment error:', error);
+                Swal.fire({
+                    title: 'Investment Failed',
+                    text: 'Failed to start investment. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        }
+
+        // Handle set PIN
+        async function handleSetPin(e) {
+            e.preventDefault();
+            const newPin = document.getElementById('newPin').value;
+            const confirmPin = document.getElementById('confirmPin').value;
+
+            // Validation
+            if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+                Swal.fire({
+                    title: 'Invalid PIN',
+                    text: 'PIN must be exactly 6 digits.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (newPin !== confirmPin) {
+                Swal.fire({
+                    title: 'PIN Mismatch',
+                    text: 'PINs do not match. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            try {
+                await db.collection('users').doc(currentUser.uid).update({
+                    transactionPin: newPin
+                });
+
+                userData.transactionPin = newPin;
+                updateUI();
+                closeModal('setPinModal');
+                document.getElementById('setPinForm').reset();
+
+                Swal.fire({
+                    title: 'PIN Set Successfully',
+                    text: 'Your transaction PIN has been set. You can now make investments and withdrawals.',
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            } catch (error) {
+                console.error('Set PIN error:', error);
+                Swal.fire({
+                    title: 'Failed to Set PIN',
+                    text: 'Failed to set transaction PIN. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        }
+
+        // Handle profile update
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            const formData = {
+                title: document.getElementById('profileTitle').value,
+                firstName: document.getElementById('profileFirstName').value.trim(),
+                lastName: document.getElementById('profileLastName').value.trim(),
+                phone: document.getElementById('profilePhone').value.trim(),
+                dateOfBirth: document.getElementById('profileDateOfBirth').value
+            };
+
+            // Create full name
+            formData.fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
+            try {
+                await db.collection('users').doc(currentUser.uid).update(formData);
+
+                // Update user profile in Firebase Auth
+                await currentUser.updateProfile({
+                    displayName: formData.fullName
+                });
+
+                userData = { ...userData, ...formData };
+                updateUI();
+
+                Swal.fire({
+                    title: 'Profile Updated',
+                    text: 'Your profile has been updated successfully.',
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            } catch (error) {
+                console.error('Profile update error:', error);
+                Swal.fire({
+                    title: 'Update Failed',
+                    text: 'Failed to update profile. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        }
+
+        // Handle profile picture upload
+        function handleProfilePictureUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleProfilePictureFile(file);
+            }
+        }
+
+        // Handle profile picture file
+        async function handleProfilePictureFile(file) {
+            // Validate file
+            if (!file.type.startsWith('image/')) {
+                Swal.fire({
+                    title: 'Invalid File',
+                    text: 'Please select an image file.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                Swal.fire({
+                    title: 'File Too Large',
+                    text: 'Please select an image smaller than 5MB.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            try {
+                // Show loading
+                Swal.fire({
+                    title: 'Uploading...',
+                    text: 'Please wait while we upload your profile picture.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Upload to Firebase Storage
+                const storageRef = storage.ref(`profile-pictures/${currentUser.uid}`);
+                const snapshot = await storageRef.put(file);
+                const downloadURL = await snapshot.ref.getDownloadURL();
+
+                // Update user document
+                await db.collection('users').doc(currentUser.uid).update({
+                    profilePicture: downloadURL
+                });
+
+                // Update user profile in Firebase Auth
+                await currentUser.updateProfile({
+                    photoURL: downloadURL
+                });
+
+                userData.profilePicture = downloadURL;
+                updateUI();
+
+                Swal.fire({
+                    title: 'Picture Updated',
+                    text: 'Your profile picture has been updated successfully.',
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            } catch (error) {
+                console.error('Profile picture upload error:', error);
+                Swal.fire({
+                    title: 'Upload Failed',
+                    text: 'Failed to upload profile picture. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        }
+
+        // Handle change password
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+            // Validation
+            if (newPassword.length < 6) {
+                Swal.fire({
+                    title: 'Password Too Short',
+                    text: 'New password must be at least 6 characters long.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                Swal.fire({
+                    title: 'Password Mismatch',
+                    text: 'New passwords do not match.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            try {
+                // Re-authenticate user
+                const credential = firebase.auth.EmailAuthProvider.credential(
+                    currentUser.email,
+                    currentPassword
+                );
+                await currentUser.reauthenticateWithCredential(credential);
+
+                // Update password
+                await currentUser.updatePassword(newPassword);
+
+                closeModal('changePasswordModal');
+                document.getElementById('changePasswordForm').reset();
+
+                Swal.fire({
+                    title: 'Password Changed',
+                    text: 'Your password has been changed successfully.',
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            } catch (error) {
+                console.error('Change password error:', error);
+                let errorMessage = 'Failed to change password. Please try again.';
+                if (error.code === 'auth/wrong-password') {
+                    errorMessage = 'Current password is incorrect.';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'New password is too weak.';
+                }
+
+                Swal.fire({
+                    title: 'Password Change Failed',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        }
+
+        // Handle support form submission
+        async function handleSupportSubmit(e) {
+            e.preventDefault();
+            const subject = document.getElementById('supportSubject').value;
+            const message = document.getElementById('supportMessage').value.trim();
+
+            if (!subject || !message) {
+                Swal.fire({
+                    title: 'Missing Information',
+                    text: 'Please fill in all required fields.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            try {
+                const ticket = {
+                    id: generateTransactionId(),
+                    subject: subject,
+                    message: message,
+                    status: 'open',
+                    priority: 'normal',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Cornerstone Capital</title>
+    <style>
+        /* Email-safe CSS */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 10px 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .welcome-message {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .welcome-message h2 {
+            color: #0c4a6e;
+            margin: 0 0 10px;
+            font-size: 20px;
+        }
+
+        .welcome-message p {
+            color: #0369a1;
+            margin: 0;
+        }
+
+        .verification-button {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            color: white;
+            text-decoration: none;
+            padding: 18px 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #1e40af, #2563eb);
+        }
+
+        .alternative-link {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .alternative-link p {
+            margin: 0 0 10px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .alternative-link a {
+            color: #1e3a8a;
+            word-break: break-all;
+            font-size: 12px;
+        }
+
+        .security-notice {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .security-notice h3 {
+            color: #065f46;
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+
+        .security-notice p {
+            color: #047857;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .footer {
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 30px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .footer h3 {
+            color: white;
+            margin: 0 0 15px;
+            font-size: 18px;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        .footer a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .social-links {
+            margin: 20px 0;
+        }
+
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+
+            .header,
+            .content,
+            .footer {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .btn {
+                padding: 15px 30px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">CC</div>
+            <h1>Welcome to Cornerstone Capital</h1>
+            <p>Your Premier Investment Platform</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="welcome-message">
+                <h2>🎉 Account Created Successfully!</h2>
+                <p>Thank you for choosing Cornerstone Capital for your investment journey. We're excited to help you
+                    build wealth through our sophisticated investment strategies.</p>
+            </div>
+
+            <p>Dear <strong>{{to_name}}</strong>,</p>
+
+            <p>Your investment account has been created successfully! To complete your registration and access your
+                dashboard, please verify your email address by clicking the button below:</p>
+
+            <div class="verification-button">
+                <a href="{{verification_url}}" class="btn">Verify My Email Address</a>
+            </div>
+
+            <div class="alternative-link">
+                <p>If the button doesn't work, copy and paste this link into your browser:</p>
+                <a href="{{verification_url}}">{{verification_url}}</a>
+            </div>
+
+            <div class="security-notice">
+                <h3>🔒 Security Notice</h3>
+                <p>This verification link will expire in 24 hours for your security. If you didn't create an account
+                    with Cornerstone Capital, please ignore this email or contact our support team.</p>
+            </div>
+
+            <h3>What's Next?</h3>
+            <ul>
+                <li><strong>Verify your email</strong> - Click the verification link above</li>
+                <li><strong>Complete your profile</strong> - Add additional information for KYC compliance</li>
+                <li><strong>Fund your account</strong> - Make your initial investment</li>
+                <li><strong>Start investing</strong> - Choose from our range of investment plans</li>
+            </ul>
+
+            <p>If you have any questions or need assistance, our support team is here to help:</p>
+            <ul>
+                <li>📧 Email: <a href="mailto:{{support_email}}">{{support_email}}</a></li>
+                <li>📞 Phone: +44 20 7946 0958</li>
+                <li>💬 Live Chat: Available 24/7 on our website</li>
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <h3>{{company_name}}</h3>
+            <p>25 Canada Square, Canary Wharf</p>
+            <p>London E14 5LQ, United Kingdom</p>
+            <p>FCA Authorized and Regulated</p>
+
+            <div class="social-links">
+                <a href="#">LinkedIn</a> |
+                <a href="#">Twitter</a> |
+                <a href="#">Facebook
+                    <a href="#">Twitter</a> |
+                    <a href="#">Facebook</a>
+            </div>
+
+            <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
+                © 2025 {{company_name}}. All rights reserved.<br>
+                This email was sent to {{to_email}}. If you no longer wish to receive these emails,
+                <a href="#" style="color: #60a5fa;">unsubscribe here</a>.
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>
