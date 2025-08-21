@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification - Cornerstone Capital</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, doc, updateDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBkuXPDG6ErewsMeDaVIWel1x-dX73ESeA",
+            authDomain: "cornerstone-capital-eead9.firebaseapp.com",
+            projectId: "cornerstone-capital-eead9",
+            storageBucket: "cornerstone-capital-eead9.firebasestorage.app",
+            messagingSenderId: "749574969719",
+            appId: "1:749574969719:web:2d5330b9d4223559cf6972",
+            measurementId: "G-F5KLSSVCR7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.firebaseDb = db;
+        window.firebaseUpdateDoc = updateDoc;
+        window.firebaseGetDoc = getDoc;
+        window.firebaseDoc = doc;
+    </script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1e293b;
+        }
+
+        .verification-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .verification-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #10b981, #34d399);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            color: white;
+            font-size: 40px;
+        }
+
+        .pending-icon {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+        }
+
+        .error-icon {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+        }
+
+        h1 {
+            color: #1e3a8a;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #64748b;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .email-display {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            font-weight: 600;
+            color: #1e3a8a;
+            font-size: 1.1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(30, 58, 138, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8fafc;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .instructions {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: left;
+        }
+
+        .instructions h3 {
+            color: #0c4a6e;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .instructions ol {
+            color: #0369a1;
+            padding-left: 20px;
+            line-height: 1.6;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
+        .countdown {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f59e0b;
+            margin: 20px 0;
+        }
+
+        .success-message {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #065f46;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #991b1b;
+        }
+
+        .loading {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .verification-container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="verification-container">
+        <div class="logo">CC</div>
+
+        <!-- Pending Verification State -->
+        <div id="pending-state">
+            <div class="verification-icon pending-icon">📧</div>
+            <h1>Check Your Email</h1>
+            <p class="subtitle">We've sent a verification link to:</p>
+            <div class="email-display" id="user-email"></div>
+
+            <div class="instructions">
+                <h3>📋 Next Steps:</h3>
+                <ol>
+                    <li>Check your email inbox (and spam folder)</li>
+                    <li>Click the verification link in the email</li>
+                    <li>Return to this page to complete setup</li>
+                    <li>Access your investment dashboard</li>
+                </ol>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="resend-btn">
+                    <span id="resend-text">Resend Email</span>
+                    <div class="loading" id="resend-loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <span>Sending...</span>
+                    </div>
+                </button>
+                <button class="btn btn-secondary" id="check-status-btn">Check Status</button>
+            </div>
+
+            <div class="countdown" id="countdown"></div>
+        </div>
+
+        <!-- Success State -->
+        <div id="success-state" style="display: none;">
+            <div class="verification-icon">✅</div>
+            <h1>Email Verified!</h1>
+            <p class="subtitle">Your account has been successfully verified.</p>
+
+            <div class="success-message">
+                <strong>🎉 Welcome to Cornerstone Capital!</strong><br>
+                Your account is now active and ready to use. You can now access your investment dashboard and start
+                building your portfolio.
+            </div>
+
+            <div class="action-buttons">
+                <a href="investment_dashboard.html" class="btn btn-primary">Access Dashboard</a>
+                <a href="client_login.html" class="btn btn-secondary">Go to Login</a>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" style="display: none;">
+            <div class="verification-icon error-icon">❌</div>
+            <h1>Verification Failed</h1>
+            <p class="subtitle">There was an issue verifying your email address.</p>
+
+            <div class="error-message" id="error-message-text"></div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="retry-btn">Try Again</button>
+                <a href="open_account.html" class="btn btn-secondary">Create New Account</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let countdownTimer;
+        let resendCooldown = 0;
+
+        // Get URL parameters
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Show different states
+        function showState(state) {
+            document.getElementById('pending-state').style.display = state === 'pending' ? 'block' : 'none';
+            document.getElementById('success-state').style.display = state === 'success' ? 'block' : 'none';
+            document.getElementById('error-state').style.display = state === 'error' ? 'block' : 'none';
+        }
+
+        // Start countdown timer
+        function startCountdown() {
+            resendCooldown = 60;
+            const resendBtn = document.getElementById('resend-btn');
+            const countdownEl = document.getElementById('countdown');
+
+            resendBtn.disabled = true;
+
+            countdownTimer = setInterval(() => {
+                resendCooldown--;
+                countdownEl.textContent = `You can resend the email in ${resendCooldown} seconds`;
+
+                if (resendCooldown <= 0) {
+                    clearInterval(countdownTimer);
+                    resendBtn.disabled = false;
+                    countdownEl.textContent = '';
+                }
+            }, 1000);
+        }
+
+        // Verify email token
+        async function verifyEmailToken(token, email) {
+            try {
+                // In a real implementation, you would verify the token against your database
+                // For now, we'll simulate the verification process
+
+                // Check if verification data exists in localStorage (fallback)
+                const pendingVerification = localStorage.getItem('pending_verification');
+                if (pendingVerification) {
+                    const data = JSON.parse(pendingVerification);
+                    if (data.token === token && data.email === email) {
+                        // Mark as verified
+                        localStorage.removeItem('pending_verification');
+                        localStorage.setItem('verified_user', JSON.stringify({
+                            ...data.userData,
+                            emailVerified: true,
+                            verifiedAt: new Date().toISOString()
+                        }));
+                        return { success: true };
+                    }
+                }
+
+                // If Firebase is available, update the user document
+                if (window.firebaseDb) {
+                    // In a real implementation, you would:
+                    // 1. Find the user by verification token
+                    // 2. Update their emailVerified status
+                    // 3. Remove the verification token
+
+                    // For demo purposes, we'll assume success
+                    return { success: true };
+                }
+
+                return { success: false, error: 'Invalid or expired verification token' };
+
+            } catch (error) {
+                console.error('Verification error:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Check verification status
+        async function checkVerificationStatus(email) {
+            try {
+                // Check localStorage first
+                const verifiedUser = localStorage.getItem('verified_user');
+                if (verifiedUser) {
+                    const userData = JSON.parse(verifiedUser);
+                    if (userData.email === email && userData.emailVerified) {
+                        return { verified: true };
+                    }
+                }
+
+                // In a real implementation, check Firebase/database
+                return { verified: false };
+
+            } catch (error) {
+                console.error('Status check error:', error);
+                return { verified: false };
+            }
+        }
+
+        // Resend verification email
+        async function resendVerificationEmail(email) {
+            try {
+                // In a real implementation, you would:
+                // 1. Generate a new verification token
+                // 2. Update the user's record
+                // 3. Send a new email
+
+                // For demo purposes, we'll simulate success
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                return { success: true };
+
+            } catch (error) {
+                console.error('Resend error:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async function () {
+            const token = getUrlParameter('token');
+            const email = getUrlParameter('email');
+
+            if (!email) {
+                showState('error');
+                document.getElementById('error-message-text').textContent = 'Invalid verification link. Please try registering again.';
+                return;
+            }
+
+            // Display email
+            document.getElementById('user-email').textContent = email;
+
+            // If token is provided, verify immediately
+            if (token) {
+                const result = await verifyEmailToken(token, email);
+                if (result.success) {
+                    showState('success');
+
+                    // Show success notification
+                    Swal.fire({
+                        title: 'Email Verified Successfully!',
+                        text: 'Your account is now active. Welcome to Cornerstone Capital!',
+                        icon: 'success',
+                        confirmButtonText: 'Access Dashboard',
+                        confirmButtonColor: '#1e3a8a'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = 'investment_dashboard.html';
+                        }
+                    });
+                    return;
+                } else {
+                    showState('error');
+                    document.getElementById('error-message-text').textContent = result.error || 'Verification failed. Please try again.';
+                    return;
+                }
+            }
+
+            // Show pending state and start countdown
+            showState('pending');
+            startCountdown();
+
+            // Set up event listeners
+            document.getElementById('resend-btn').addEventListener('click', async function () {
+                const resendText = document.getElementById('resend-text');
+                const resendLoading = document.getElementById('resend-loading');
+
+                resendText.style.display = 'none';
+                resendLoading.style.display = 'flex';
+                this.disabled = true;
+
+                try {
+                    const result = await resendVerificationEmail(email);
+                    if (result.success) {
+                        Swal.fire({
+                            title: 'Email Sent!',
+                            text: 'A new verification email has been sent to your inbox.',
+                            icon: 'success',
+                            confirmButtonColor: '#1e3a8a'
+                        });
+                        startCountdown();
+                    } else {
+                        throw new Error(result.error || 'Failed to send email');
+                    }
+                } catch (error) {
+                    Swal.fire({
+                        title: 'Send Failed',
+                        text: 'Failed to send verification email. Please try again later.',
+                        icon: 'error',
+                        confirmButtonColor: '#1e3a8a'
+                    });
+                    this.disabled = false;
+                } finally {
+                    resendText.style.display = 'block';
+                    resendLoading.style.display = 'none';
+                }
+            });
+
+            document.getElementById('check-status-btn').addEventListener('click', async function () {
+                const originalText = this.textContent;
+                this.textContent = 'Checking...';
+                this.disabled = true;
+
+                try {
+                    const status = await checkVerificationStatus(email);
+                    if (status.verified) {
+                        showState('success');
+                        Swal.fire({
+                            title: 'Email Verified!',
+                            text: 'Your account has been successfully verified.',
+                            icon: 'success',
+                            confirmButtonColor: '#1e3a8a'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Not Verified Yet',
+                            text: 'Your email has not been verified yet. Please check your inbox and click the verification link.',
+                            icon: 'info',
+                            confirmButtonColor: '#1e3a8a'
+                        });
+                    }
+                } catch (error) {
+                    Swal.fire({
+                        title: 'Check Failed',
+                        text: 'Unable to check verification status. Please try again.',
+                        icon: 'error',
+                        confirmButtonColor: '#1e3a8a'
+                    });
+                } finally {
+                    this.textContent = originalText;
+                    this.disabled = false;
+                }
+            });
+
+            document.getElementById('retry-btn').addEventListener('click', function () {
+                window.location.reload();
+            });
+
+            // Auto-check status every 30 seconds
+            setInterval(async () => {
+                const status = await checkVerificationStatus(email);
+                if (status.verified) {
+                    showState('success');
+                    clearInterval(countdownTimer);
+                }
+            }, 30000);
+        });
+    </script>
+</body>
+
+</html>
