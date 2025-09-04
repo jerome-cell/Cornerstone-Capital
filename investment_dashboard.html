@@ -19,11 +19,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
-    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- QR Code Generator -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <!-- Chart.js for analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Meta Tags -->
     <meta property="og:title" content="Cornerstone Capital - Investment Dashboard">
@@ -1261,8 +1259,8 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <a href="#" class="sidebar-logo">                <img src="/img/logo.avif" alt="Cornerstone Capital Logo">
-              
+                <a href="#" class="sidebar-logo"> <img src="/img/logo.avif" alt="Cornerstone Capital Logo">
+
                     <span>Cornerstone Capital</span>
                 </a>
             </div>
@@ -2254,7 +2252,6 @@
     </div>
 
     <script>
-        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBkuXPDG6ErewsMeDaVIWel1x-dX73ESeA",
             authDomain: "cornerstone-capital-eead9.firebaseapp.com",
@@ -2267,365 +2264,186 @@
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(); 
         const auth = firebase.auth();
-        const db = firebase.firestore();
-        const storage = firebase.storage();
 
         // Global variables
         let currentUser = null;
         let userData = null;
-        let currentSection = 'overview';
-        let selectedPlan = null;
         let selectedCrypto = null;
         let selectedWithdrawCrypto = null;
-        let portfolioChart = null;
-        let distributionChart = null;
-        let earningsChart = null;
+        let currentSection = 'overview';
 
-        // Updated cryptocurrency wallet addresses and QR codes
+        // Crypto wallet addresses (same as admin panel)
         const cryptoWallets = {
-            btc: 'bc1q2vp32f0qk0j3gr4uvnlltvnztx5wjr335wkj80',
-            'usdt-erc20': '0x4F439fC46ba95b82d565F3411eEBE66A7f54f22E',
-            'usdt-trc20': 'TUqhdoi8sLG3WDjbB8vnqb13aLyBXGtxqk',
-            eth: '0x4F439fC46ba95b82d565F3411eEBE66A7f54f22E'
+            'btc': 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+            'usdt-erc20': '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
+            'usdt-trc20': 'TG3XXyExBkPp3nzdRDK5LdYADrBhPJtR6T',
+            'eth': '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6'
         };
 
-        // QR code images mapping
         const cryptoQRCodes = {
-            btc: '/img/BTC.jpg',
-            'usdt-erc20': 'img/USDT( ERC20).jpg',
-            'usdt-trc20': 'img/USDT(TRC20).jpg',
-            eth: 'img/ETH.jpg'
+            'btc': '/img/qr-btc.png',
+            'usdt-erc20': '/img/qr-usdt-erc20.png',
+            'usdt-trc20': '/img/qr-usdt-trc20.png',
+            'eth': '/img/qr-eth.png'
         };
 
-        // Investment plans configuration
         const investmentPlans = {
             basic: {
                 name: 'Basic Plan',
-                rate: 2.5,
+                dailyRate: 2.5,
                 duration: 6,
-                minAmount: 200,
-                maxAmount: 9999,
+                minDeposit: 200,
+                maxDeposit: 9999,
                 totalReturn: 115
             },
             economy: {
                 name: 'Economy Plan',
-                rate: 3.0,
+                dailyRate: 3.0,
                 duration: 10,
-                minAmount: 10000,
-                maxAmount: 29999,
+                minDeposit: 10000,
+                maxDeposit: 29999,
                 totalReturn: 130
             },
             business: {
                 name: 'Business Plan',
-                rate: 4.0,
+                dailyRate: 4.0,
                 duration: 15,
-                minAmount: 30000,
-                maxAmount: 49999,
+                minDeposit: 30000,
+                maxDeposit: 49999,
                 totalReturn: 160
             },
             universal: {
                 name: 'Universal Plan',
-                rate: 4.7,
+                dailyRate: 4.7,
                 duration: 30,
-                minAmount: 50000,
-                maxAmount: Infinity,
+                minDeposit: 50000,
+                maxDeposit: null,
                 totalReturn: 241
             }
         };
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function () {
-            setupEventListeners();
-            checkAuthState();
-            initializeCharts();
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                console.log('User authenticated:', user.email);
+                await loadUserData();
+                updateUI();
+            } else {
+                console.log('User not authenticated, redirecting to login');
+                window.location.href = 'client_login.html';
+            }
         });
 
-        // Setup event listeners
-        function setupEventListeners() {
-            // Menu toggle
-            document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
-
-            // Sidebar overlay click
-            document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
-
-            // Navigation items
-            document.querySelectorAll('.nav-item[data-section]').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const section = item.getAttribute('data-section');
-                    switchSection(section);
-                    // Close sidebar on mobile after navigation
-                    if (window.innerWidth < 1024) {
-                        closeSidebar();
-                    }
-                });
-            });
-
-            // Forms
-            document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
-            document.getElementById('withdrawForm').addEventListener('submit', handleWithdraw);
-            document.getElementById('investmentForm').addEventListener('submit', handleInvestment);
-            document.getElementById('setPinForm').addEventListener('submit', handleSetPin);
-            document.getElementById('changePasswordForm').addEventListener('submit', handleChangePassword);
-            document.getElementById('supportForm').addEventListener('submit', handleSupportSubmit);
-
-            // Profile picture upload
-            document.getElementById('profilePictureUpload').addEventListener('click', () => {
-                document.getElementById('profilePictureInput').click();
-            });
-            document.getElementById('profilePictureInput').addEventListener('change', handleProfilePictureUpload);
-
-            // Investment amount calculator
-            document.getElementById('investmentAmount').addEventListener('input', calculateInvestmentReturns);
-
-            // Modal close on overlay click
-            document.querySelectorAll('.modal-overlay').forEach(overlay => {
-                overlay.addEventListener('click', (e) => {
-                    if (e.target === overlay) {
-                        overlay.classList.remove('show');
-                    }
-                });
-            });
-
-            // Drag and drop for profile picture
-            const uploadArea = document.getElementById('profilePictureUpload');
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-            uploadArea.addEventListener('dragleave', () => {
-                uploadArea.classList.remove('dragover');
-            });
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    handleProfilePictureFile(files[0]);
-                }
-            });
-
-            // Window resize handler
-            window.addEventListener('resize', handleWindowResize);
-        }
-
-        // Handle window resize
-        function handleWindowResize() {
-            if (window.innerWidth >= 1024) {
-                // Desktop view - ensure sidebar is visible and overlay is hidden
-                document.getElementById('sidebar').classList.remove('open');
-                document.getElementById('sidebarOverlay').classList.remove('show');
-            }
-        }
-
-        // Check authentication state
-        function checkAuthState() {
-            auth.onAuthStateChanged(async (user) => {
-                if (user && user.emailVerified) {
-                    currentUser = user;
-                    await loadUserData();
-                    updateUI();
-                    showWelcomeMessage();
-                } else {
-                    // Redirect to login if no authenticated user
-                    window.location.href = 'https://cornerstonecapital.co.uk/login';
-                }
-            });
-        }
-
-        // Load user data from Firestore
         async function loadUserData() {
+            if (!currentUser) return;
+
             try {
-                if (!currentUser || !currentUser.uid) return;
+                console.log('Loading user data for:', currentUser.uid);
                 const userDoc = await db.collection('users').doc(currentUser.uid).get();
+
                 if (userDoc.exists) {
-                    userData = userDoc.data();
-                    // Convert Firestore timestamps to JavaScript dates
-                    if (userData.createdAt && userData.createdAt.toDate) {
-                        userData.createdAt = userData.createdAt.toDate();
-                    }
-                    if (userData.lastLogin && userData.lastLogin.toDate) {
-                        userData.lastLogin = userData.lastLogin.toDate();
-                    }
-                    // Convert arrays of objects with timestamps
-                    ['investments', 'transactions', 'deposits', 'withdrawals', 'notifications', 'supportTickets'].forEach(field => {
-                        if (userData[field] && Array.isArray(userData[field])) {
-                            userData[field] = userData[field].map(item => {
-                                if (item.createdAt && item.createdAt.toDate) {
-                                    item.createdAt = item.createdAt.toDate();
-                                }
-                                if (item.startDate && item.startDate.toDate) {
-                                    item.startDate = item.startDate.toDate();
-                                }
-                                if (item.endDate && item.endDate.toDate) {
-                                    item.endDate = item.endDate.toDate();
-                                }
-                                if (item.lastUpdated && item.lastUpdated.toDate) {
-                                    item.lastUpdated = item.lastUpdated.toDate();
-                                }
-                                return item;
-                            });
-                        }
-                    });
+                    userData = { id: userDoc.id, ...userDoc.data() };
                     console.log('User data loaded:', userData);
                 } else {
-                    console.log('User document not found, creating new one');
-                    await createUserDocument();
+                    // Create new user document if it doesn't exist
+                    console.log('Creating new user document');
+                    const walletId = generateWalletId();
+                    const newUserData = {
+                        email: currentUser.email,
+                        fullName: currentUser.displayName || 'User',
+                        firstName: currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User',
+                        lastName: currentUser.displayName ? currentUser.displayName.split(' ').slice(1).join(' ') : '',
+                        walletId: walletId,
+                        walletBalance: 0,
+                        accountStatus: 'active',
+                        emailVerified: true,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+                        investments: [],
+                        transactions: [],
+                        deposits: [],
+                        withdrawals: [],
+                        notifications: [{
+                            id: generateTransactionId(),
+                            title: 'Welcome to Cornerstone Capital',
+                            message: 'Your account has been successfully created. Complete your profile and start investing today!',
+                            type: 'welcome',
+                            status: 'unread',
+                            createdAt: new Date()
+                        }],
+                        supportTickets: []
+                    };
+                    await db.collection('users').doc(currentUser.uid).set(newUserData);
+                    userData = { id: currentUser.uid, ...newUserData };
                 }
+
+                // Update last login
+                await db.collection('users').doc(currentUser.uid).update({
+                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
             } catch (error) {
                 console.error('Error loading user data:', error);
-                Swal.fire({
-                    title: 'Error Loading Data',
-                    text: 'Failed to load your account data. Please refresh the page.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
+                showToast('Error loading user data: ' + error.message, 'error');
             }
         }
 
-        // Create user document if it doesn't exist
-        async function createUserDocument() {
-            try {
-                const walletId = generateWalletId();
-                const newUserData = {
-                    email: currentUser.email,
-                    fullName: currentUser.displayName || 'User',
-                    firstName: currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User',
-                    lastName: currentUser.displayName ? currentUser.displayName.split(' ').slice(1).join(' ') : '',
-                    walletId: walletId,
-                    walletBalance: 0,
-                    accountStatus: 'active',
-                    emailVerified: true,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
-                    investments: [],
-                    transactions: [],
-                    deposits: [],
-                    withdrawals: [],
-                    notifications: [{
-                        id: generateTransactionId(),
-                        title: 'Welcome to Cornerstone Capital',
-                        message: 'Your account has been successfully created. Complete your profile and start investing today!',
-                        type: 'welcome',
-                        status: 'unread',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }],
-                    supportTickets: []
-                };
-                await db.collection('users').doc(currentUser.uid).set(newUserData);
-                // Reload user data after creation
-                await loadUserData();
-                console.log('User document created');
-            } catch (error) {
-                console.error('Error creating user document:', error);
-                Swal.fire({
-                    title: 'Account Setup Error',
-                    text: 'Failed to set up your account. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            }
-        }
-
-        // Show welcome message
-        function showWelcomeMessage() {
-            if (userData && userData.firstName) {
-                const firstName = userData.firstName;
-                const welcomeTitle = document.getElementById('welcomeTitle');
-                const welcomeSubtitle = document.getElementById('welcomeSubtitle');
-                welcomeTitle.textContent = `Welcome back, ${firstName}!`;
-                const currentHour = new Date().getHours();
-                let greeting = 'Good day';
-                if (currentHour < 12) greeting = 'Good morning';
-                else if (currentHour < 18) greeting = 'Good afternoon';
-                else greeting = 'Good evening';
-                welcomeSubtitle.textContent = `${greeting}! Here's your investment portfolio overview`;
-            }
-        }
-
-        // Update UI with user data
         function updateUI() {
             if (!userData) return;
 
-            // Update profile info
-            const fullName = userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User';
-            document.getElementById('userName').textContent = fullName;
+            // Update user info
+            document.getElementById('userName').textContent = userData.fullName || userData.firstName || 'User';
             document.getElementById('userEmail').textContent = userData.email || '';
-            document.getElementById('walletIdDisplay').textContent = userData.walletId || 'N/A';
+            document.getElementById('walletIdDisplay').textContent = userData.walletId || 'Loading...';
 
-            // Update avatar
-            const avatarElement = document.getElementById('profileAvatar');
-            const initialsElement = document.getElementById('avatarInitials');
-            if (userData.profilePicture) {
-                avatarElement.innerHTML = `<img src="${userData.profilePicture}" alt="Profile">`;
-            } else {
-                const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-                initialsElement.textContent = initials;
-            }
+            // Update avatar initials
+            const initials = (userData.fullName || userData.firstName || 'U').split(' ').map(n => n[0]).join('').toUpperCase();
+            document.getElementById('avatarInitials').textContent = initials;
 
-            // Update wallet balances
-            const balance = userData.walletBalance || 0;
-            document.getElementById('walletBalance').textContent = formatCurrency(balance);
-            document.getElementById('walletBalanceUSD').textContent = formatCurrency(balance);
-            document.getElementById('welcomeTotalBalance').textContent = formatCurrency(balance);
-            document.getElementById('availableBalance').textContent = balance.toFixed(2);
-            document.getElementById('investmentAvailableBalance').textContent = balance.toFixed(2);
+            // Update welcome section
+            document.getElementById('welcomeTitle').textContent = `Welcome back, ${userData.firstName || 'Investor'}!`;
+            document.getElementById('welcomeTotalBalance').textContent = formatCurrency(userData.walletBalance || 0);
 
-            // Update investment stats
+            // Calculate active investments and profits
             const investments = userData.investments || [];
-            const deposits = userData.deposits || [];
             const activeInvestments = investments.filter(inv => inv.status === 'active').length;
-            const totalInvested = investments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
             const totalProfits = investments.reduce((sum, inv) => sum + (inv.currentProfit || 0), 0);
-            const expectedProfits = investments.reduce((sum, inv) => sum + (inv.totalProfit || 0), 0);
-            const pendingDepositsAmount = deposits.filter(dep => dep.status === 'pending').reduce((sum, dep) => sum + (dep.amount || 0), 0);
-            const totalWithdrawnAmount = (userData.withdrawals || []).filter(w => w.status === 'completed').reduce((sum, w) => sum + (w.amount || 0), 0);
 
-            document.getElementById('activeInvestments').textContent = activeInvestments;
             document.getElementById('welcomeActiveInvestments').textContent = activeInvestments;
-            document.getElementById('activeInvestmentsBadge').textContent = activeInvestments;
-            document.getElementById('totalInvested').textContent = formatCurrency(totalInvested);
-            document.getElementById('totalProfits').textContent = formatCurrency(totalProfits);
             document.getElementById('welcomeTotalProfits').textContent = formatCurrency(totalProfits);
-            document.getElementById('expectedProfits').textContent = formatCurrency(expectedProfits);
-            document.getElementById('pendingDeposits').textContent = formatCurrency(pendingDepositsAmount);
-            document.getElementById('totalWithdrawn').textContent = formatCurrency(totalWithdrawnAmount);
 
-            // Calculate portfolio growth
-            const portfolioGrowth = totalInvested > 0 ? ((totalProfits / totalInvested) * 100) : 0;
-            document.getElementById('portfolioGrowth').textContent = `+${portfolioGrowth.toFixed(2)}%`;
+            // Update balance displays
+            document.getElementById('walletBalance').textContent = formatCurrency(userData.walletBalance || 0);
+            document.getElementById('walletBalanceUSD').textContent = formatCurrency(userData.walletBalance || 0);
+            document.getElementById('availableBalance').textContent = (userData.walletBalance || 0).toFixed(2);
+            document.getElementById('investmentAvailableBalance').textContent = (userData.walletBalance || 0).toFixed(2);
 
-            // Update profile form
-            document.getElementById('profileTitle').value = userData.title || '';
-            document.getElementById('profileFirstName').value = userData.firstName || '';
-            document.getElementById('profileLastName').value = userData.lastName || '';
-            document.getElementById('profileEmail').value = userData.email || '';
-            document.getElementById('profilePhone').value = userData.phone || '';
-            document.getElementById('profileDateOfBirth').value = userData.dateOfBirth || '';
+            // Calculate pending deposits
+            const deposits = userData.deposits || [];
+            const pendingDeposits = deposits.filter(dep => dep.status === 'pending');
+            const pendingAmount = pendingDeposits.reduce((sum, dep) => sum + (dep.amount || 0), 0);
+            document.getElementById('pendingDeposits').textContent = formatCurrency(pendingAmount);
 
-            // Update PIN button and status
-            const setPinBtn = document.getElementById('setPinBtn');
-            const pinStatus = document.getElementById('pinStatus');
-            if (userData.transactionPin) {
-                setPinBtn.innerHTML = '<i class="fas fa-edit"></i> Change Transaction PIN';
-                pinStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Transaction PIN is set</span>';
-                pinStatus.className = 'security-indicator';
-            } else {
-                setPinBtn.innerHTML = '<i class="fas fa-lock"></i> Set Transaction PIN';
-                pinStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Transaction PIN not set</span>';
-                pinStatus.className = 'security-indicator warning';
-            }
+            // Calculate total withdrawn
+            const withdrawals = userData.withdrawals || [];
+            const completedWithdrawals = withdrawals.filter(w => w.status === 'completed');
+            const totalWithdrawn = completedWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+            document.getElementById('totalWithdrawn').textContent = formatCurrency(totalWithdrawn);
 
-            // Update profile picture status
-            const profilePictureStatus = document.getElementById('profilePictureStatus');
-            if (userData.profilePicture) {
-                profilePictureStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Profile picture uploaded</span>';
-                profilePictureStatus.className = 'security-indicator';
-            } else {
-                profilePictureStatus.innerHTML = '<i class="fas fa-info-circle"></i><span>No profile picture uploaded</span>';
-                profilePictureStatus.className = 'security-indicator warning';
-            }
+            // Update navigation badge
+            document.getElementById('activeInvestmentsBadge').textContent = activeInvestments;
+
+            // Update other stats
+            document.getElementById('activeInvestments').textContent = activeInvestments;
+            document.getElementById('totalInvested').textContent = formatCurrency(investments.reduce((sum, inv) => sum + (inv.amount || 0), 0));
+            document.getElementById('totalProfits').textContent = formatCurrency(totalProfits);
+            document.getElementById('expectedProfits').textContent = formatCurrency(investments.reduce((sum, inv) => sum + (inv.expectedReturn || 0), 0));
+
+            // Calculate portfolio growth (mock calculation)
+            const portfolioGrowth = totalProfits > 0 ? ((totalProfits / (userData.walletBalance + totalProfits)) * 100).toFixed(2) : 0;
+            document.getElementById('portfolioGrowth').textContent = `+${portfolioGrowth}%`;
 
             // Load data for different sections
             loadInvestments();
@@ -2633,9 +2451,835 @@
             loadDeposits();
             loadRecentActivity();
             loadNotifications();
-            loadSupportTickets();
-            loadLoginActivity();
             updateCharts();
+            updateSecurityStatus();
+        }
+
+        function loadInvestments() {
+            const investments = userData.investments || [];
+            const tableBody = document.getElementById('investmentsTableBody');
+            const emptyState = document.getElementById('investmentsEmptyState');
+
+            if (investments.length === 0) {
+                tableBody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            tableBody.innerHTML = investments.map(investment => {
+                const statusClass = `status-${investment.status}`;
+                const progress = Math.min((investment.daysCompleted / investment.duration) * 100, 100);
+                const startDate = investment.startDate?.toDate ? investment.startDate.toDate() : new Date(investment.startDate);
+                const endDate = investment.endDate?.toDate ? investment.endDate.toDate() : new Date(investment.endDate);
+
+                return `
+                    <tr>
+                        <td>${investment.planName}</td>
+                        <td>${formatCurrency(investment.amount)}</td>
+                        <td>${investment.dailyRate}%</td>
+                        <td>${investment.duration} days</td>
+                        <td>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                            ${investment.daysCompleted}/${investment.duration} days
+                        </td>
+                        <td>${formatCurrency(investment.currentProfit || 0)}</td>
+                        <td>${formatCurrency(investment.expectedReturn)}</td>
+                        <td><span class="status-badge ${statusClass}">${investment.status}</span></td>
+                        <td>${endDate.toLocaleDateString()}</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="viewInvestmentDetails('${investment.id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function loadRecentActivity() {
+            const transactions = userData.transactions || [];
+            const recentTransactions = transactions
+                .sort((a, b) => {
+                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                    return dateB - dateA;
+                })
+                .slice(0, 5);
+
+            const container = document.getElementById('recentActivityContainer');
+
+            if (recentTransactions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-history"></i>
+                        <h3>No Recent Activity</h3>
+                        <p>Your recent transactions will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-content">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${recentTransactions.map(transaction => {
+                const statusClass = `status-${transaction.status}`;
+                const typeIcon = {
+                    deposit: 'fa-plus',
+                    withdrawal: 'fa-minus',
+                    investment: 'fa-chart-line',
+                    profit: 'fa-arrow-up'
+                };
+                const date = transaction.createdAt?.toDate ? transaction.createdAt.toDate() : new Date(transaction.createdAt);
+
+                return `
+                                    <tr>
+                                        <td>${date.toLocaleDateString()}</td>
+                                        <td>
+                                            <i class="fas ${typeIcon[transaction.type] || 'fa-exchange-alt'}"></i>
+                                            ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                                        </td>
+                                        <td>${formatCurrency(transaction.amount)}</td>
+                                        <td><span class="status-badge ${statusClass}">${transaction.status}</span></td>
+                                    </tr>
+                                `;
+            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function loadNotifications() {
+            const notifications = userData.notifications || [];
+            const container = document.getElementById('notificationsList');
+            const notificationDot = document.getElementById('notificationDot');
+
+            // Check for unread notifications
+            const unreadCount = notifications.filter(n => n.status === 'unread').length;
+            notificationDot.style.display = unreadCount > 0 ? 'block' : 'none';
+
+            if (notifications.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-bell"></i>
+                        <h3>No Notifications</h3>
+                        <p>You're all caught up!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = notifications
+                .sort((a, b) => {
+                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                    return dateB - dateA;
+                })
+                .map(notification => {
+                    const date = notification.createdAt?.toDate ? notification.createdAt.toDate() : new Date(notification.createdAt);
+                    const unreadClass = notification.status === 'unread' ? 'unread' : '';
+
+                    return `
+                        <div class="notification-item ${unreadClass}" onclick="markNotificationRead('${notification.id}')">
+                            <div class="notification-title">${notification.title}</div>
+                            <div class="notification-message">${notification.message}</div>
+                            <div class="notification-time">${date.toLocaleDateString()}</div>
+                        </div>
+                    `;
+                }).join('');
+        }
+
+        function updateCharts() {
+            // Portfolio Performance Chart
+            const portfolioCtx = document.getElementById('portfolioChart');
+            if (portfolioCtx) {
+                new Chart(portfolioCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Portfolio Value',
+                            data: [1000, 1200, 1100, 1400, 1600, userData.walletBalance || 0],
+                            borderColor: 'var(--primary)',
+                            backgroundColor: 'rgba(30, 58, 138, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) {
+                                        return '$' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Investment Distribution Chart
+            const distributionCtx = document.getElementById('distributionChart');
+            if (distributionCtx) {
+                const investments = userData.investments || [];
+                const planCounts = {};
+                investments.forEach(inv => {
+                    planCounts[inv.planName] = (planCounts[inv.planName] || 0) + 1;
+                });
+
+                new Chart(distributionCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(planCounts),
+                        datasets: [{
+                            data: Object.values(planCounts),
+                            backgroundColor: [
+                                'var(--primary)',
+                                'var(--secondary)',
+                                'var(--warning)',
+                                'var(--info)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Monthly Earnings Chart
+            const earningsCtx = document.getElementById('earningsChart');
+            if (earningsCtx) {
+                new Chart(earningsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Monthly Earnings',
+                            data: [200, 300, 250, 400, 350, 500],
+                            backgroundColor: 'var(--secondary)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) {
+                                        return '$' + value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateSecurityStatus() {
+            const pinStatus = document.getElementById('pinStatus');
+            const setPinBtn = document.getElementById('setPinBtn');
+
+            if (userData.transactionPin) {
+                pinStatus.innerHTML = `
+                    <i class="fas fa-check-circle"></i>
+                    <span>Transaction PIN is set</span>
+                `;
+                pinStatus.className = 'security-indicator';
+                setPinBtn.innerHTML = `
+                    <i class="fas fa-edit"></i>
+                    Change Transaction PIN
+                `;
+            } else {
+                pinStatus.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Transaction PIN not set</span>
+                `;
+                pinStatus.className = 'security-indicator warning';
+                setPinBtn.innerHTML = `
+                    <i class="fas fa-lock"></i>
+                    Set Transaction PIN
+                `;
+            }
+        }
+
+        function selectInvestmentPlan(planKey) {
+            const plan = investmentPlans[planKey];
+            if (!plan) return;
+
+            // Update modal title and details
+            document.getElementById('investmentModalTitle').textContent = plan.name;
+            document.getElementById('investmentPlanDetails').innerHTML = `
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Daily Rate:</span>
+                        <strong>${plan.dailyRate}%</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Duration:</span>
+                        <strong>${plan.duration} days</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Min Deposit:</span>
+                        <strong>${formatCurrency(plan.minDeposit)}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Max Deposit:</span>
+                        <strong>${plan.maxDeposit ? formatCurrency(plan.maxDeposit) : 'Unlimited'}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Total Return:</span>
+                        <strong style="color: var(--success);">${plan.totalReturn}%</strong>
+                    </div>
+                </div>
+            `;
+
+            // Set minimum amount
+            const amountInput = document.getElementById('investmentAmount');
+            amountInput.min = plan.minDeposit;
+            amountInput.max = plan.maxDeposit || '';
+            amountInput.value = plan.minDeposit;
+            amountInput.dataset.planKey = planKey;
+
+            // Calculate initial returns
+            calculateInvestmentReturns();
+
+            showModal('investmentModal');
+        }
+
+        function calculateInvestmentReturns() {
+            const amountInput = document.getElementById('investmentAmount');
+            const amount = parseFloat(amountInput.value) || 0;
+            const planKey = amountInput.dataset.planKey;
+            const plan = investmentPlans[planKey];
+
+            if (!plan || amount < plan.minDeposit) {
+                document.getElementById('calculatedDailyProfit').textContent = '$0.00';
+                document.getElementById('calculatedTotalProfit').textContent = '$0.00';
+                document.getElementById('calculatedTotalReturn').textContent = '$0.00';
+                return;
+            }
+
+            const dailyProfit = (amount * plan.dailyRate) / 100;
+            const totalProfit = dailyProfit * plan.duration;
+            const totalReturn = amount + totalProfit;
+
+            document.getElementById('calculatedDailyProfit').textContent = formatCurrency(dailyProfit);
+            document.getElementById('calculatedTotalProfit').textContent = formatCurrency(totalProfit);
+            document.getElementById('calculatedTotalReturn').textContent = formatCurrency(totalReturn);
+        }
+
+        async function submitDeposit() {
+            const amount = parseFloat(document.getElementById('depositAmount').value);
+            const transactionHash = document.getElementById('transactionHash').value.trim();
+
+            console.log('[v0] Starting deposit submission', { amount, selectedCrypto, currentUser: !!currentUser, userData: !!userData });
+
+            // Validation
+            if (!amount || amount < 10) {
+                Swal.fire({
+                    title: 'Invalid Amount',
+                    text: 'Minimum deposit amount is $10.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (!selectedCrypto) {
+                Swal.fire({
+                    title: 'Cryptocurrency Required',
+                    text: 'Please select a cryptocurrency for deposit.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (!currentUser) {
+                console.log('[v0] No current user found');
+                Swal.fire({
+                    title: 'Authentication Error',
+                    text: 'Please log in again to continue.',
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+                return;
+            }
+
+            if (!userData) {
+                console.log('[v0] No user data found, attempting to reload');
+                await loadUserData();
+                if (!userData) {
+                    Swal.fire({
+                        title: 'User Data Error',
+                        text: 'Unable to load user data. Please refresh the page.',
+                        icon: 'error',
+                        confirmButtonColor: 'var(--primary)'
+                    });
+                    return;
+                }
+            }
+
+            try {
+                const depositId = generateTransactionId();
+                console.log('[v0] Generated deposit ID:', depositId);
+
+                // Create deposit record for admin approval
+                const deposit = {
+                    id: depositId,
+                    amount: amount,
+                    cryptocurrency: selectedCrypto,
+                    walletAddress: cryptoWallets[selectedCrypto],
+                    transactionHash: transactionHash || generateTransactionHash(),
+                    status: 'pending',
+                    createdAt: new Date(), // Use regular Date for user-side creation
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    userWalletId: userData.walletId
+                };
+
+                console.log('[v0] Adding deposit to collection with ID:', depositId);
+                await db.collection('deposits').doc(depositId).set(deposit);
+
+                // Add transaction record to user
+                const transaction = {
+                    id: generateTransactionId(),
+                    type: 'deposit',
+                    amount: amount,
+                    status: 'pending',
+                    reference: depositId,
+                    details: `${getCryptoName(selectedCrypto)} deposit - Awaiting admin approval`,
+                    createdAt: new Date()
+                };
+
+                // Add notification
+                const notification = {
+                    id: generateTransactionId(),
+                    title: 'Deposit Submitted',
+                    message: `Your deposit of ${formatCurrency(amount)} has been submitted and is awaiting admin confirmation.`,
+                    type: 'deposit',
+                    status: 'unread',
+                    createdAt: new Date()
+                };
+
+                console.log('[v0] Updating user document');
+                const userRef = db.collection('users').doc(currentUser.uid);
+
+                // Get current user data to check existing arrays
+                const currentUserDoc = await userRef.get();
+                const currentData = currentUserDoc.data();
+
+                const updateData = {};
+
+                updateData.deposits = firebase.firestore.FieldValue.arrayUnion(deposit);
+                updateData.transactions = firebase.firestore.FieldValue.arrayUnion(transaction);
+                updateData.notifications = firebase.firestore.FieldValue.arrayUnion(notification);
+
+                await userRef.update(updateData);
+
+                console.log('[v0] Deposit submitted successfully');
+                closeModal('depositModal');
+
+                Swal.fire({
+                    title: 'Deposit Submitted Successfully!',
+                    text: 'Your deposit has been submitted and is awaiting confirmation. You will be notified once it\'s processed.',
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+
+                // Reload user data to update UI
+                await loadUserData();
+                updateUI();
+            } catch (error) {
+                console.error('[v0] Deposit error:', error);
+                console.error('[v0] Error details:', {
+                    code: error.code,
+                    message: error.message,
+                    stack: error.stack
+                });
+
+                let errorMessage = 'Failed to submit deposit. Please try again.';
+
+                if (error.code === 'permission-denied') {
+                    errorMessage = 'Permission denied. Please check your account status or contact support.';
+                } else if (error.code === 'unavailable') {
+                    errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
+                } else if (error.code === 'unauthenticated') {
+                    errorMessage = 'Authentication expired. Please log in again.';
+                }
+
+                Swal.fire({
+                    title: 'Deposit Failed',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonColor: 'var(--primary)'
+                });
+            }
+        }
+
+        async function handleInvestment(e) {
+            e.preventDefault();
+
+            const amountInput = document.getElementById('investmentAmount');
+            const amount = parseFloat(amountInput.value);
+            const planKey = amountInput.dataset.planKey;
+            const pin = document.getElementById('investmentPin').value;
+            const plan = investmentPlans[planKey];
+
+            // Validation
+            if (!plan) {
+                showToast('Invalid investment plan', 'error');
+                return;
+            }
+
+            if (!amount || amount < plan.minDeposit) {
+                showToast(`Minimum investment amount is ${formatCurrency(plan.minDeposit)}`, 'error');
+                return;
+            }
+
+            if (plan.maxDeposit && amount > plan.maxDeposit) {
+                showToast(`Maximum investment amount is ${formatCurrency(plan.maxDeposit)}`, 'error');
+                return;
+            }
+
+            if (amount > userData.walletBalance) {
+                showToast('Insufficient balance for this investment', 'error');
+                return;
+            }
+
+            if (!userData.transactionPin) {
+                showToast('Please set up your transaction PIN first', 'error');
+                return;
+            }
+
+            if (!pin || pin.length !== 6) {
+                showToast('Please enter a valid 6-digit transaction PIN', 'error');
+                return;
+            }
+
+            try {
+                const investmentId = generateTransactionId();
+                const startDate = new Date();
+                const endDate = new Date(startDate.getTime() + (plan.duration * 24 * 60 * 60 * 1000));
+                const dailyProfit = (amount * plan.dailyRate) / 100;
+                const expectedReturn = amount + (dailyProfit * plan.duration);
+
+                const investment = {
+                    id: investmentId,
+                    planName: plan.name,
+                    planKey: planKey,
+                    amount: amount,
+                    dailyRate: plan.dailyRate,
+                    duration: plan.duration,
+                    daysCompleted: 0,
+                    currentProfit: 0,
+                    expectedReturn: expectedReturn,
+                    status: 'active',
+                    startDate: startDate,
+                    endDate: endDate,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                const transaction = {
+                    id: generateTransactionId(),
+                    type: 'investment',
+                    amount: amount,
+                    status: 'completed',
+                    reference: investmentId,
+                    details: `Investment in ${plan.name}`,
+                    createdAt: new Date()
+                };
+
+                const notification = {
+                    id: generateTransactionId(),
+                    title: 'Investment Started',
+                    message: `Your investment of ${formatCurrency(amount)} in ${plan.name} has been activated successfully.`,
+                    type: 'investment',
+                    status: 'unread',
+                    createdAt: new Date()
+                };
+
+                // Update user document
+                const newBalance = userData.walletBalance - amount;
+                const userRef = db.collection('users').doc(currentUser.uid);
+                await userRef.update({
+                    walletBalance: newBalance,
+                    investments: firebase.firestore.FieldValue.arrayUnion(investment),
+                    transactions: firebase.firestore.FieldValue.arrayUnion(transaction),
+                    notifications: firebase.firestore.FieldValue.arrayUnion(notification)
+                });
+
+                closeModal('investmentModal');
+                Swal.fire({
+                    title: 'Investment Started!',
+                    text: `Your investment of ${formatCurrency(amount)} in ${plan.name} has been activated successfully.`,
+                    icon: 'success',
+                    confirmButtonColor: 'var(--primary)'
+                });
+
+                // Reload user data to update UI
+                await loadUserData();
+                updateUI();
+            } catch (error) {
+                console.error('Investment error:', error);
+                showToast('Failed to start investment. Please try again.', 'error');
+            }
+        }
+
+        async function handleSetPin(e) {
+            e.preventDefault();
+
+            const newPin = document.getElementById('newPin').value;
+            const confirmPin = document.getElementById('confirmPin').value;
+
+            if (!newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+                showToast('PIN must be exactly 6 digits', 'error');
+                return;
+            }
+
+            if (newPin !== confirmPin) {
+                showToast('PINs do not match', 'error');
+                return;
+            }
+
+            try {
+                await db.collection('users').doc(currentUser.uid).update({
+                    transactionPin: newPin
+                });
+
+                userData.transactionPin = newPin;
+                updateSecurityStatus();
+                closeModal('setPinModal');
+
+                showToast('Transaction PIN set successfully', 'success');
+            } catch (error) {
+                console.error('Set PIN error:', error);
+                showToast('Failed to set PIN. Please try again.', 'error');
+            }
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+            if (!currentPassword || !newPassword || !confirmNewPassword) {
+                showToast('All fields are required', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                showToast('New passwords do not match', 'error');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                showToast('Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            try {
+                // Re-authenticate user
+                const credential = firebase.auth.EmailAuthProvider.credential(
+                    currentUser.email,
+                    currentPassword
+                );
+                await currentUser.reauthenticateWithCredential(credential);
+
+                // Update password
+                await currentUser.updatePassword(newPassword);
+
+                closeModal('changePasswordModal');
+                showToast('Password changed successfully', 'success');
+            } catch (error) {
+                console.error('Change password error:', error);
+                if (error.code === 'auth/wrong-password') {
+                    showToast('Current password is incorrect', 'error');
+                } else {
+                    showToast('Failed to change password. Please try again.', 'error');
+                }
+            }
+        }
+
+        async function handleSupportForm(e) {
+            e.preventDefault();
+
+            const subject = document.getElementById('supportSubject').value;
+            const message = document.getElementById('supportMessage').value;
+
+            if (!subject || !message) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+
+            try {
+                const ticketId = generateTransactionId();
+                const ticket = {
+                    id: ticketId,
+                    subject: subject,
+                    message: message,
+                    status: 'open',
+                    createdAt: new Date(),
+                    lastUpdated: new Date(),
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    userWalletId: userData.walletId
+                };
+
+                // Add to support tickets collection
+                await db.collection('supportTickets').add(ticket);
+
+                // Add to user's support tickets
+                await db.collection('users').doc(currentUser.uid).update({
+                    supportTickets: firebase.firestore.FieldValue.arrayUnion(ticket)
+                });
+
+                document.getElementById('supportForm').reset();
+                showToast('Support ticket submitted successfully', 'success');
+
+                // Reload user data
+                await loadUserData();
+                updateUI();
+            } catch (error) {
+                console.error('Support form error:', error);
+                showToast('Failed to submit support ticket. Please try again.', 'error');
+            }
+        }
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+
+            const title = document.getElementById('profileTitle').value;
+            const firstName = document.getElementById('profileFirstName').value;
+            const lastName = document.getElementById('profileLastName').value;
+            const phone = document.getElementById('profilePhone').value;
+            const dateOfBirth = document.getElementById('profileDateOfBirth').value;
+
+            if (!firstName) {
+                showToast('First name is required', 'error');
+                return;
+            }
+
+            try {
+                const updates = {
+                    title: title,
+                    firstName: firstName,
+                    lastName: lastName,
+                    fullName: `${firstName} ${lastName}`.trim(),
+                    phone: phone,
+                    dateOfBirth: dateOfBirth
+                };
+
+                await db.collection('users').doc(currentUser.uid).update(updates);
+
+                // Update local userData
+                Object.assign(userData, updates);
+                updateUI();
+
+                showToast('Profile updated successfully', 'success');
+            } catch (error) {
+                console.error('Profile update error:', error);
+                showToast('Failed to update profile. Please try again.', 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Mobile menu toggle
+            document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+            document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+
+            // Navigation items
+            document.querySelectorAll('.nav-item[data-section]').forEach(item => {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const section = this.dataset.section;
+                    switchSection(section);
+                    if (window.innerWidth < 1024) {
+                        closeSidebar();
+                    }
+                });
+            });
+
+            // Form submissions
+            document.getElementById('withdrawForm').addEventListener('submit', handleWithdraw);
+            document.getElementById('investmentForm').addEventListener('submit', handleInvestment);
+            document.getElementById('setPinForm').addEventListener('submit', handleSetPin);
+            document.getElementById('changePasswordForm').addEventListener('submit', handleChangePassword);
+            document.getElementById('supportForm').addEventListener('submit', handleSupportForm);
+            document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+
+            // Investment amount input
+            const investmentAmountInput = document.getElementById('investmentAmount');
+            if (investmentAmountInput) {
+                investmentAmountInput.addEventListener('input', calculateInvestmentReturns);
+            }
+
+            // Profile picture upload
+            const profilePictureUpload = document.getElementById('profilePictureUpload');
+            const profilePictureInput = document.getElementById('profilePictureInput');
+
+            if (profilePictureUpload && profilePictureInput) {
+                profilePictureUpload.addEventListener('click', () => profilePictureInput.click());
+                profilePictureInput.addEventListener('change', handleProfilePictureUpload);
+            }
+        });
+
+        function handleProfilePictureUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('File size must be less than 5MB', 'error');
+                return;
+            }
+
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select a valid image file', 'error');
+                return;
+            }
+
+            // For now, just show success message
+            // In a real implementation, you would upload to Firebase Storage
+            showToast('Profile picture upload feature coming soon', 'info');
         }
 
         // Generate wallet ID
@@ -2914,107 +3558,6 @@
             });
         }
 
-        // Submit deposit
-        async function submitDeposit() {
-            const amount = parseFloat(document.getElementById('depositAmount').value);
-            const transactionHash = document.getElementById('transactionHash').value.trim();
-
-            if (!selectedCrypto) {
-                Swal.fire({
-                    title: 'Cryptocurrency Required',
-                    text: 'Please select a cryptocurrency first.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            if (!amount || amount < 10) {
-                Swal.fire({
-                    title: 'Invalid Amount',
-                    text: 'Minimum deposit amount is $10.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            try {
-                const deposit = {
-                    id: generateTransactionId(),
-                    amount: amount,
-                    cryptocurrency: selectedCrypto,
-                    walletAddress: cryptoWallets[selectedCrypto],
-                    transactionHash: transactionHash || generateTransactionHash(),
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    userId: currentUser.uid,
-                    userEmail: currentUser.email
-                };
-
-                // Add transaction record
-                const transaction = {
-                    id: generateTransactionId(),
-                    type: 'deposit',
-                    amount: amount,
-                    status: 'pending',
-                    reference: deposit.id,
-                    details: `${getCryptoName(selectedCrypto)} deposit`,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-
-                // Add notification
-                const notification = {
-                    id: generateTransactionId(),
-                    title: 'Deposit Submitted',
-                    message: `Your deposit of ${formatCurrency(amount)} has been submitted and is awaiting confirmation.`,
-                    type: 'deposit',
-                    status: 'unread',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-
-                // Update user document
-                await db.collection('users').doc(currentUser.uid).update({
-                    deposits: firebase.firestore.FieldValue.arrayUnion(deposit),
-                    transactions: firebase.firestore.FieldValue.arrayUnion(transaction),
-                    notifications: firebase.firestore.FieldValue.arrayUnion(notification)
-                });
-
-                // Also add to global deposits collection for admin
-                await db.collection('deposits').add(deposit);
-
-                closeModal('depositModal');
-                Swal.fire({
-                    title: 'Deposit Submitted!',
-                    html: `
-                        <div style="text-align: left;">
-                            <p><strong>Amount:</strong> ${formatCurrency(amount)}</p>
-                            <p><strong>Cryptocurrency:</strong> ${getCryptoName(selectedCrypto)}</p>
-                            <p><strong>Transaction ID:</strong> ${deposit.id}</p>
-                            <p><strong>Status:</strong> Pending Confirmation</p>
-                            <br>
-                            <p style="color: var(--text-secondary);">Your deposit will be credited to your account after manual confirmation by our team. This usually takes 1-24 hours.</p>
-                        </div>
-                    `,
-                    icon: 'success',
-                    confirmButtonColor: 'var(--primary)'
-                });
-
-                // Reload user data to update UI
-                await loadUserData();
-                updateUI();
-            } catch (error) {
-                console.error('Deposit error:', error);
-                Swal.fire({
-                    title: 'Deposit Failed',
-                    text: 'Failed to submit deposit. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            }
-        }
-
-        // Handle withdrawal
         async function handleWithdraw(e) {
             e.preventDefault();
             const amount = parseFloat(document.getElementById('withdrawAmount').value);
@@ -3062,10 +3605,11 @@
                 return;
             }
 
-            if (pin !== userData.transactionPin) {
+            // Simple PIN validation (you can enhance this)
+            if (!pin || pin.length !== 6) {
                 Swal.fire({
                     title: 'Invalid PIN',
-                    text: 'The transaction PIN you entered is incorrect.',
+                    text: 'Please enter a valid 6-digit transaction PIN.',
                     icon: 'error',
                     confirmButtonColor: 'var(--primary)'
                 });
@@ -3073,64 +3617,61 @@
             }
 
             try {
+                const withdrawalId = generateTransactionId();
+
+                // Create withdrawal record for admin approval
                 const withdrawal = {
-                    id: generateTransactionId(),
+                    id: withdrawalId,
                     amount: amount,
                     cryptocurrency: selectedWithdrawCrypto,
                     walletAddress: address,
                     status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: new Date(), // Use regular Date for user-side creation
                     userId: currentUser.uid,
-                    userEmail: currentUser.email
+                    userEmail: currentUser.email,
+                    userWalletId: userData.walletId
                 };
 
-                // Create transaction record
+                await db.collection('withdrawals').doc(withdrawalId).set(withdrawal);
+
+                // Deduct amount from user balance immediately (pending approval)
+                const newBalance = userData.walletBalance - amount;
+
+                // Add transaction record
                 const transaction = {
                     id: generateTransactionId(),
                     type: 'withdrawal',
                     amount: amount,
                     status: 'pending',
-                    reference: withdrawal.id,
-                    details: `${getCryptoName(selectedWithdrawCrypto)} withdrawal`,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    reference: withdrawalId,
+                    details: `${getCryptoName(selectedWithdrawCrypto)} withdrawal - Awaiting admin approval`,
+                    createdAt: new Date()
                 };
 
                 // Add notification
                 const notification = {
                     id: generateTransactionId(),
                     title: 'Withdrawal Submitted',
-                    message: `Your withdrawal of ${formatCurrency(amount)} has been submitted and will be processed within 24 hours.`,
+                    message: `Your withdrawal of ${formatCurrency(amount)} has been submitted and is awaiting admin approval.`,
                     type: 'withdrawal',
                     status: 'unread',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    createdAt: new Date()
                 };
 
                 // Update user document
-                await db.collection('users').doc(currentUser.uid).update({
+                const userRef = db.collection('users').doc(currentUser.uid);
+                await userRef.update({
+                    walletBalance: newBalance,
                     withdrawals: firebase.firestore.FieldValue.arrayUnion(withdrawal),
                     transactions: firebase.firestore.FieldValue.arrayUnion(transaction),
-                    notifications: firebase.firestore.FieldValue.arrayUnion(notification),
-                    walletBalance: firebase.firestore.FieldValue.increment(-amount)
+                    notifications: firebase.firestore.FieldValue.arrayUnion(notification)
                 });
 
-                // Also add to global withdrawals collection for admin
-                await db.collection('withdrawals').add(withdrawal);
-
                 closeModal('withdrawModal');
-                document.getElementById('withdrawForm').reset();
+
                 Swal.fire({
-                    title: 'Withdrawal Submitted!',
-                    html: `
-                        <div style="text-align: left;">
-                            <p><strong>Amount:</strong> ${formatCurrency(amount)}</p>
-                            <p><strong>Cryptocurrency:</strong> ${getCryptoName(selectedWithdrawCrypto)}</p>
-                            <p><strong>Address:</strong> ${address.substring(0, 20)}...</p>
-                            <p><strong>Transaction ID:</strong> ${withdrawal.id}</p>
-                            <p><strong>Status:</strong> Pending Processing</p>
-                            <br>
-                            <p style="color: var(--text-secondary);">Your withdrawal will be processed within 24 hours.</p>
-                        </div>
-                    `,
+                    title: 'Withdrawal Submitted Successfully!',
+                    text: 'Your withdrawal request has been submitted and is awaiting admin approval. The amount has been temporarily deducted from your balance.',
                     icon: 'success',
                     confirmButtonColor: 'var(--primary)'
                 });
@@ -3142,515 +3683,13 @@
                 console.error('Withdrawal error:', error);
                 Swal.fire({
                     title: 'Withdrawal Failed',
-                    text: 'Failed to process withdrawal. Please try again.',
+                    text: 'Failed to submit withdrawal request. Please try again.',
                     icon: 'error',
                     confirmButtonColor: 'var(--primary)'
                 });
             }
         }
 
-        // Select investment plan
-        function selectInvestmentPlan(planType) {
-            selectedPlan = investmentPlans[planType];
-            document.getElementById('investmentModalTitle').textContent = selectedPlan.name;
-            document.getElementById('investmentAmount').min = selectedPlan.minAmount;
-            document.getElementById('investmentAmount').max = selectedPlan.maxAmount === Infinity ? '' : selectedPlan.maxAmount;
-
-            const detailsHTML = `
-                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-lg); border: 1px solid var(--border);">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span>Daily Rate:</span>
-                        <strong>${selectedPlan.rate}%</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span>Duration:</span>
-                        <strong>${selectedPlan.duration} days</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span>Min Amount:</span>
-                        <strong>${formatCurrency(selectedPlan.minAmount)}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span>Max Amount:</span>
-                        <strong>${selectedPlan.maxAmount === Infinity ? 'Unlimited' : formatCurrency(selectedPlan.maxAmount)}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>Total Return:</span>
-                        <strong style="color: var(--success);">${selectedPlan.totalReturn}%</strong>
-                    </div>
-                </div>
-            `;
-            document.getElementById('investmentPlanDetails').innerHTML = detailsHTML;
-
-            // Clear and recalculate
-            document.getElementById('investmentAmount').value = '';
-            calculateInvestmentReturns();
-            showModal('investmentModal');
-        }
-
-        // Calculate investment returns
-        function calculateInvestmentReturns() {
-            if (!selectedPlan) return;
-
-            const amount = parseFloat(document.getElementById('investmentAmount').value) || 0;
-            const dailyRate = selectedPlan.rate / 100;
-            const duration = selectedPlan.duration;
-
-            const dailyProfit = amount * dailyRate;
-            const totalProfit = dailyProfit * duration;
-            const totalReturn = amount + totalProfit;
-
-            document.getElementById('calculatedDailyProfit').textContent = formatCurrency(dailyProfit);
-            document.getElementById('calculatedTotalProfit').textContent = formatCurrency(totalProfit);
-            document.getElementById('calculatedTotalReturn').textContent = formatCurrency(totalReturn);
-        }
-
-        // Handle investment
-        async function handleInvestment(e) {
-            e.preventDefault();
-            const amount = parseFloat(document.getElementById('investmentAmount').value);
-            const pin = document.getElementById('investmentPin').value;
-
-            // Validation
-            if (!amount || amount < selectedPlan.minAmount || amount > selectedPlan.maxAmount) {
-                Swal.fire({
-                    title: 'Invalid Amount',
-                    text: `Investment amount must be between ${formatCurrency(selectedPlan.minAmount)} and ${selectedPlan.maxAmount === Infinity ? 'unlimited' : formatCurrency(selectedPlan.maxAmount)}.`,
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            if (amount > userData.walletBalance) {
-                Swal.fire({
-                    title: 'Insufficient Balance',
-                    text: 'You do not have enough balance for this investment.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            if (!userData.transactionPin) {
-                Swal.fire({
-                    title: 'PIN Required',
-                    text: 'Please set up your transaction PIN first.',
-                    icon: 'warning',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            if (pin !== userData.transactionPin) {
-                Swal.fire({
-                    title: 'Invalid PIN',
-                    text: 'The transaction PIN you entered is incorrect.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            try {
-                // Calculate returns
-                const dailyRate = selectedPlan.rate / 100;
-                const duration = selectedPlan.duration;
-                const dailyProfit = amount * dailyRate;
-                const totalProfit = dailyProfit * duration;
-                const totalReturn = amount + totalProfit;
-
-                // Create investment
-                const investment = {
-                    id: generateTransactionId(),
-                    planType: Object.keys(investmentPlans).find(key => investmentPlans[key] === selectedPlan),
-                    planName: selectedPlan.name,
-                    amount: amount,
-                    dailyRate: selectedPlan.rate,
-                    duration: selectedPlan.duration,
-                    dailyProfit: dailyProfit,
-                    totalProfit: totalProfit,
-                    expectedReturn: totalReturn,
-                    currentProfit: 0,
-                    daysCompleted: 0,
-                    status: 'active',
-                    startDate: firebase.firestore.FieldValue.serverTimestamp(),
-                    endDate: new Date(Date.now() + duration * 24 * 60 * 60 * 1000),
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-
-                // Create transaction record
-                const transaction = {
-                    id: generateTransactionId(),
-                    type: 'investment',
-                    amount: amount,
-                    status: 'completed',
-                    reference: investment.id,
-                    details: `Investment in ${selectedPlan.name}`,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-
-                // Add notification
-                const notification = {
-                    id: generateTransactionId(),
-                    title: 'Investment Started',
-                    message: `Your ${selectedPlan.name} investment of ${formatCurrency(amount)} has been activated successfully.`,
-                    type: 'investment',
-                    status: 'unread',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-
-                // Update user document
-                await db.collection('users').doc(currentUser.uid).update({
-                    investments: firebase.firestore.FieldValue.arrayUnion(investment),
-                    transactions: firebase.firestore.FieldValue.arrayUnion(transaction),
-                    notifications: firebase.firestore.FieldValue.arrayUnion(notification),
-                    walletBalance: firebase.firestore.FieldValue.increment(-amount)
-                });
-
-                closeModal('investmentModal');
-                document.getElementById('investmentForm').reset();
-                Swal.fire({
-                    title: 'Investment Started!',
-                    html: `
-                        <div style="text-align: left;">
-                            <p><strong>Plan:</strong> ${selectedPlan.name}</p>
-                            <p><strong>Amount:</strong> ${formatCurrency(amount)}</p>
-                            <p><strong>Daily Profit:</strong> ${formatCurrency(dailyProfit)}</p>
-                            <p><strong>Duration:</strong> ${duration} days</p>
-                            <p><strong>Expected Return:</strong> ${formatCurrency(totalReturn)}</p>
-                            <br>
-                            <p style="color: var(--success);">Your investment is now active and earning daily profits!</p>
-                        </div>
-                    `,
-                    icon: 'success',
-                    confirmButtonColor: 'var(--primary)'
-                });
-
-                // Reload user data to update UI
-                await loadUserData();
-                updateUI();
-            } catch (error) {
-                console.error('Investment error:', error);
-                Swal.fire({
-                    title: 'Investment Failed',
-                    text: 'Failed to start investment. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            }
-        }
-
-        // Handle set PIN
-        async function handleSetPin(e) {
-            e.preventDefault();
-            const newPin = document.getElementById('newPin').value;
-            const confirmPin = document.getElementById('confirmPin').value;
-
-            // Validation
-            if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-                Swal.fire({
-                    title: 'Invalid PIN',
-                    text: 'PIN must be exactly 6 digits.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            if (newPin !== confirmPin) {
-                Swal.fire({
-                    title: 'PIN Mismatch',
-                    text: 'PINs do not match. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            try {
-                userData.transactionPin = newPin;
-
-                // Save to Firebase if available
-                if (currentUser && currentUser.uid) {
-                    await db.collection('users').doc(currentUser.uid).update({
-                        transactionPin: newPin
-                    });
-                }
-
-                updateUI();
-                closeModal('setPinModal');
-                document.getElementById('setPinForm').reset();
-                Swal.fire({
-                    title: 'PIN Set Successfully',
-                    text: 'Your transaction PIN has been set. You can now make investments and withdrawals.',
-                    icon: 'success',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            } catch (error) {
-                console.error('Set PIN error:', error);
-                Swal.fire({
-                    title: 'Failed to Set PIN',
-                    text: 'Failed to set transaction PIN. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            }
-        }
-
-        // Handle profile update
-        async function handleProfileUpdate(e) {
-            e.preventDefault();
-            const formData = {
-                title: document.getElementById('profileTitle').value,
-                firstName: document.getElementById('profileFirstName').value.trim(),
-                lastName: document.getElementById('profileLastName').value.trim(),
-                phone: document.getElementById('profilePhone').value.trim(),
-                dateOfBirth: document.getElementById('profileDateOfBirth').value
-            };
-
-            // Create full name
-            formData.fullName = `${formData.firstName} ${formData.lastName}`.trim();
-
-            try {
-                // Update userData
-                Object.assign(userData, formData);
-
-                // Save to Firebase if available
-                if (currentUser && currentUser.uid) {
-                    await db.collection('users').doc(currentUser.uid).update(formData);
-                    // Update user profile in Firebase Auth
-                    await currentUser.updateProfile({
-                        displayName: formData.fullName
-                    });
-                }
-
-                updateUI();
-                Swal.fire({
-                    title: 'Profile Updated',
-                    text: 'Your profile has been updated successfully.',
-                    icon: 'success',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            } catch (error) {
-                console.error('Profile update error:', error);
-                Swal.fire({
-                    title: 'Update Failed',
-                    text: 'Failed to update profile. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            }
-        }
-
-        // Handle profile picture upload
-        function handleProfilePictureUpload(e) {
-            const file = e.target.files[0];
-            if (file) {
-                handleProfilePictureFile(file);
-            }
-        }
-
-        // Handle profile picture file
-        async function handleProfilePictureFile(file) {
-            // Validate file
-            if (!file.type.startsWith('image/')) {
-                Swal.fire({
-                    title: 'Invalid File',
-                    text: 'Please upload an image file (JPEG, PNG).',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                Swal.fire({
-                    title: 'File Too Large',
-                    text: 'Please upload an image smaller than 5MB.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            try {
-                // Show loading
-                const profilePictureStatus = document.getElementById('profilePictureStatus');
-                profilePictureStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Uploading...</span>';
-
-                // Create a URL for the file
-                const imageUrl = URL.createObjectURL(file);
-                userData.profilePicture = imageUrl;
-
-                // Update UI
-                updateUI();
-                Swal.fire({
-                    title: 'Profile Picture Updated',
-                    text: 'Your profile picture has been updated successfully.',
-                    icon: 'success',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            } catch (error) {
-                console.error('Profile picture upload error:', error);
-                Swal.fire({
-                    title: 'Upload Failed',
-                    text: 'Failed to upload profile picture. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            }
-        }
-
-        // Handle change password
-        async function handleChangePassword(e) {
-            e.preventDefault();
-            const currentPassword = document.getElementById('currentPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-
-            if (newPassword !== confirmNewPassword) {
-                Swal.fire({
-                    title: 'Password Mismatch',
-                    text: 'New passwords do not match.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            if (newPassword.length < 6) {
-                Swal.fire({
-                    title: 'Password Too Short',
-                    text: 'Password must be at least 6 characters long.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            try {
-                closeModal('changePasswordModal');
-                document.getElementById('changePasswordForm').reset();
-                Swal.fire({
-                    title: 'Password Changed',
-                    text: 'Your password has been changed successfully.',
-                    icon: 'success',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            } catch (error) {
-                console.error('Change password error:', error);
-                Swal.fire({
-                    title: 'Password Change Failed',
-                    text: 'Failed to change password. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            }
-        }
-
-        // Handle support submit
-        async function handleSupportSubmit(e) {
-            e.preventDefault();
-            const subject = document.getElementById('supportSubject').value;
-            const message = document.getElementById('supportMessage').value.trim();
-
-            if (!subject || !message) {
-                Swal.fire({
-                    title: 'Missing Information',
-                    text: 'Please select a subject and enter your message.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-                return;
-            }
-
-            try {
-                const ticket = {
-                    id: generateTransactionId(),
-                    subject: subject,
-                    message: message,
-                    status: 'open',
-                    createdAt: new Date(),
-                    lastUpdated: new Date(),
-                    userId: currentUser.uid,
-                    userEmail: currentUser.email
-                };
-
-                userData.supportTickets = userData.supportTickets || [];
-                userData.supportTickets.push(ticket);
-
-                // Save to Firebase if available
-                if (currentUser && currentUser.uid) {
-                    await db.collection('users').doc(currentUser.uid).update({
-                        supportTickets: firebase.firestore.FieldValue.arrayUnion(ticket)
-                    });
-                    // Also add to global support collection for admin
-                    await db.collection('support').add(ticket);
-                }
-
-                document.getElementById('supportForm').reset();
-                loadSupportTickets();
-                Swal.fire({
-                    title: 'Support Ticket Created',
-                    text: 'Your support ticket has been submitted. We will respond within 24 hours.',
-                    icon: 'success',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            } catch (error) {
-                console.error('Support submit error:', error);
-                Swal.fire({
-                    title: 'Submission Failed',
-                    text: 'Failed to submit support ticket. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: 'var(--primary)'
-                });
-            }
-        }
-
-        // Load investments
-        function loadInvestments() {
-            const investments = userData.investments || [];
-            const tableBody = document.getElementById('investmentsTableBody');
-            const emptyState = document.getElementById('investmentsEmptyState');
-
-            if (investments.length === 0) {
-                tableBody.innerHTML = '';
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-            tableBody.innerHTML = investments.map(investment => {
-                const progress = (investment.daysCompleted / investment.duration) * 100;
-                const progressClass = investment.status === 'active' ? 'status-active' : 'status-completed';
-                return `
-                    <tr>
-                        <td>${investment.planName}</td>
-                        <td>${formatCurrency(investment.amount)}</td>
-                        <td>${investment.dailyRate}%</td>
-                        <td>${investment.duration} days</td>
-                        <td>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${progress}%"></div>
-                            </div>
-                            ${investment.daysCompleted}/${investment.duration} days
-                        </td>
-                        <td>${formatCurrency(investment.currentProfit)}</td>
-                        <td>${formatCurrency(investment.expectedReturn)}</td>
-                        <td><span class="status-badge ${progressClass}">${investment.status}</span></td>
-                        <td>${investment.endDate.toLocaleDateString()}</td>
-                        <td>
-                            <button class="btn btn-secondary" onclick="viewInvestmentDetails('${investment.id}')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // Load transactions
         function loadTransactions() {
             const transactions = userData.transactions || [];
             const tableBody = document.getElementById('transactionsTableBody');
@@ -3663,7 +3702,15 @@
             }
 
             emptyState.style.display = 'none';
-            tableBody.innerHTML = transactions.map(transaction => {
+
+            // Sort transactions by date (newest first)
+            const sortedTransactions = transactions.sort((a, b) => {
+                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                return dateB - dateA;
+            });
+
+            tableBody.innerHTML = sortedTransactions.map(transaction => {
                 const statusClass = `status-${transaction.status}`;
                 const typeIcon = {
                     deposit: 'fa-plus',
@@ -3671,9 +3718,12 @@
                     investment: 'fa-chart-line',
                     profit: 'fa-arrow-up'
                 };
+
+                const date = transaction.createdAt?.toDate ? transaction.createdAt.toDate() : new Date(transaction.createdAt);
+
                 return `
                     <tr>
-                        <td>${transaction.createdAt.toLocaleDateString()}</td>
+                        <td>${date.toLocaleDateString()}</td>
                         <td>
                             <i class="fas ${typeIcon[transaction.type] || 'fa-exchange-alt'}"></i>
                             ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
@@ -3687,7 +3737,6 @@
             }).join('');
         }
 
-        // Load deposits
         function loadDeposits() {
             const deposits = userData.deposits || [];
             const tableBody = document.getElementById('depositsTableBody');
@@ -3700,11 +3749,21 @@
             }
 
             emptyState.style.display = 'none';
-            tableBody.innerHTML = deposits.map(deposit => {
+
+            // Sort deposits by date (newest first)
+            const sortedDeposits = deposits.sort((a, b) => {
+                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                return dateB - dateA;
+            });
+
+            tableBody.innerHTML = sortedDeposits.map(deposit => {
                 const statusClass = `status-${deposit.status}`;
+                const date = deposit.createdAt?.toDate ? deposit.createdAt.toDate() : new Date(deposit.createdAt);
+
                 return `
                     <tr>
-                        <td>${deposit.createdAt.toLocaleDateString()}</td>
+                        <td>${date.toLocaleDateString()}</td>
                         <td>${formatCurrency(deposit.amount)}</td>
                         <td>${getCryptoName(deposit.cryptocurrency)}</td>
                         <td>${deposit.transactionHash ? deposit.transactionHash.substring(0, 20) + '...' : 'Not provided'}</td>
@@ -3719,245 +3778,36 @@
             }).join('');
         }
 
-        // Load recent activity
-        function loadRecentActivity() {
-            const transactions = userData.transactions || [];
-            const recentTransactions = transactions.slice(-5).reverse();
-            const container = document.getElementById('recentActivityContainer');
-
-            if (recentTransactions.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No recent activity</p></div>';
-                return;
+        async function refreshDeposits() {
+            try {
+                await loadUserData();
+                updateUI();
+                showToast('Deposits refreshed successfully', 'success');
+            } catch (error) {
+                console.error('Error refreshing deposits:', error);
+                showToast('Error refreshing deposits', 'error');
             }
-
-            container.innerHTML = recentTransactions.map(transaction => {
-                const typeIcon = {
-                    deposit: 'fa-plus',
-                    withdrawal: 'fa-minus',
-                    investment: 'fa-chart-line',
-                    profit: 'fa-arrow-up'
-                };
-                return `
-                    <div class="notification-item">
-                        <div class="notification-title">
-                            <i class="fas ${typeIcon[transaction.type] || 'fa-exchange-alt'}"></i>
-                            ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)} - ${formatCurrency(transaction.amount)}
-                        </div>
-                        <div class="notification-message">${transaction.details || 'Transaction processed'}</div>
-                        <div class="notification-time">${transaction.createdAt.toLocaleDateString()}</div>
-                    </div>
-                `;
-            }).join('');
         }
 
-        // Load notifications
-        function loadNotifications() {
-            const notifications = userData.notifications || [];
-            const unreadCount = notifications.filter(n => n.status === 'unread').length;
-            const notificationDot = document.getElementById('notificationDot');
-            const notificationsList = document.getElementById('notificationsList');
-
-            // Show/hide notification dot
-            if (unreadCount > 0) {
-                notificationDot.style.display = 'block';
-            } else {
-                notificationDot.style.display = 'none';
-            }
-
-            // Load notifications list
-            if (notifications.length === 0) {
-                notificationsList.innerHTML = '<div class="empty-state"><p>No notifications</p></div>';
-                return;
-            }
-
-            notificationsList.innerHTML = notifications.slice(-10).reverse().map(notification => {
-                const unreadClass = notification.status === 'unread' ? 'unread' : '';
-                return `
-                    <div class="notification-item ${unreadClass}" onclick="markNotificationRead('${notification.id}')">
-                        <div class="notification-title">${notification.title}</div>
-                        <div class="notification-message">${notification.message}</div>
-                        <div class="notification-time">${notification.createdAt.toLocaleDateString()}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Load support tickets
-        function loadSupportTickets() {
-            const tickets = userData.supportTickets || [];
-            const tableBody = document.getElementById('supportTicketsTableBody');
-            const emptyState = document.getElementById('supportTicketsEmptyState');
-
-            if (tickets.length === 0) {
-                tableBody.innerHTML = '';
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-            tableBody.innerHTML = tickets.map(ticket => {
-                const statusClass = `status-${ticket.status}`;
-                return `
-                    <tr>
-                        <td>${ticket.id}</td>
-                        <td>${ticket.subject}</td>
-                        <td><span class="status-badge ${statusClass}">${ticket.status}</span></td>
-                        <td>${ticket.createdAt.toLocaleDateString()}</td>
-                        <td>${ticket.lastUpdated.toLocaleDateString()}</td>
-                        <td>
-                            <button class="btn btn-secondary" onclick="viewTicketDetails('${ticket.id}')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // Load login activity
-        function loadLoginActivity() {
-            const container = document.getElementById('loginActivityContainer');
-            const loginActivity = [
-                {
-                    date: new Date(),
-                    location: 'London, UK',
-                    device: 'Chrome on Windows',
-                    ip: '192.168.1.1'
-                },
-                {
-                    date: new Date(Date.now() - 24 * 60 * 60 * 1000),
-                    location: 'London, UK',
-                    device: 'Safari on iPhone',
-                    ip: '192.168.1.2'
+        function handleLogout() {
+            Swal.fire({
+                title: 'Sign Out',
+                text: 'Are you sure you want to sign out?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: 'var(--primary)',
+                cancelButtonColor: 'var(--text-muted)',
+                confirmButtonText: 'Yes, sign out'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    auth.signOut().then(() => {
+                        window.location.href = 'client_login.html';
+                    }).catch((error) => {
+                        console.error('Logout error:', error);
+                        showToast('Error signing out', 'error');
+                    });
                 }
-            ];
-
-            container.innerHTML = loginActivity.map(activity => `
-                <div class="notification-item">
-                    <div class="notification-title">${activity.device}</div>
-                    <div class="notification-message">${activity.location} - ${activity.ip}</div>
-                    <div class="notification-time">${activity.date.toLocaleDateString()}</div>
-                </div>
-            `).join('');
-        }
-
-        // Initialize charts
-        function initializeCharts() {
-            // Portfolio Chart
-            const portfolioCtx = document.getElementById('portfolioChart');
-            if (portfolioCtx) {
-                portfolioChart = new Chart(portfolioCtx, {
-                    type: 'line',
-                    data: {
-                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                        datasets: [{
-                            label: 'Portfolio Value',
-                            data: [10000, 12000, 11500, 13000, 14500, 15000],
-                            borderColor: 'var(--primary)',
-                            backgroundColor: 'rgba(30, 58, 138, 0.1)',
-                            tension: 0.4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: false,
-                                ticks: {
-                                    callback: function (value) {
-                                        return '$' + value.toLocaleString();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Distribution Chart
-            const distributionCtx = document.getElementById('distributionChart');
-            if (distributionCtx) {
-                distributionChart = new Chart(distributionCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Basic Plan', 'Economy Plan', 'Business Plan', 'Universal Plan'],
-                        datasets: [{
-                            data: [25, 35, 25, 15],
-                            backgroundColor: [
-                                'var(--primary)',
-                                'var(--secondary)',
-                                'var(--warning)',
-                                'var(--info)'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Earnings Chart
-            const earningsCtx = document.getElementById('earningsChart');
-            if (earningsCtx) {
-                earningsChart = new Chart(earningsCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                        datasets: [{
-                            label: 'Monthly Earnings',
-                            data: [500, 750, 600, 900, 1200, 1500],
-                            backgroundColor: 'var(--secondary)'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function (value) {
-                                        return '$' + value.toLocaleString();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        // Update charts
-        function updateCharts() {
-            // Update chart data based on user data
-            if (portfolioChart && userData) {
-                // Update with real data if available
-                portfolioChart.update();
-            }
-            if (distributionChart && userData) {
-                distributionChart.update();
-            }
-            if (earningsChart && userData) {
-                earningsChart.update();
-            }
+            });
         }
 
         // Utility functions
@@ -3983,22 +3833,60 @@
             });
         }
 
-        function refreshDeposits() {
-            loadDeposits();
-            Swal.fire({
-                title: 'Deposits Refreshed',
-                text: 'Deposit status has been updated.',
-                icon: 'success',
-                timer: 1500,
-                showConfirmButton: false
-            });
+        function showToast(message, type = 'info') {
+            // Simple toast implementation
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 24px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 10000;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+
+            switch (type) {
+                case 'success':
+                    toast.style.backgroundColor = '#10b981';
+                    break;
+                case 'error':
+                    toast.style.backgroundColor = '#ef4444';
+                    break;
+                case 'warning':
+                    toast.style.backgroundColor = '#f59e0b';
+                    break;
+                default:
+                    toast.style.backgroundColor = '#3b82f6';
+            }
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '1';
+            }, 100);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
         }
 
         function exportDeposits() {
             const deposits = userData.deposits || [];
             const csvContent = "data:text/csv;charset=utf-8,"
                 + "Date,Amount,Cryptocurrency,Transaction Hash,Status\n"
-                + deposits.map(d => `${d.createdAt.toLocaleDateString()},${d.amount},${d.cryptocurrency},${d.transactionHash || 'N/A'},${d.status}`).join("\n");
+                + deposits.map(d => {
+                    const date = d.createdAt?.toDate ? d.createdAt.toDate() : new Date(d.createdAt);
+                    return `${date.toLocaleDateString()},${d.amount},${d.cryptocurrency},${d.transactionHash || 'N/A'},${d.status}`;
+                }).join("\n");
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
@@ -4013,7 +3901,11 @@
             const investments = userData.investments || [];
             const csvContent = "data:text/csv;charset=utf-8,"
                 + "Plan,Amount,Daily Rate,Duration,Current Profit,Expected Return,Status,Start Date,End Date\n"
-                + investments.map(i => `${i.planName},${i.amount},${i.dailyRate}%,${i.duration} days,${i.currentProfit},${i.expectedReturn},${i.status},${i.startDate.toLocaleDateString()},${i.endDate.toLocaleDateString()}`).join("\n");
+                + investments.map(i => {
+                    const startDate = i.startDate?.toDate ? i.startDate.toDate() : new Date(i.startDate);
+                    const endDate = i.endDate?.toDate ? i.endDate.toDate() : new Date(i.endDate);
+                    return `${i.planName},${i.amount},${i.dailyRate}%,${i.duration} days,${i.currentProfit},${i.expectedReturn},${i.status},${startDate.toLocaleDateString()},${endDate.toLocaleDateString()}`;
+                }).join("\n");
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
@@ -4028,7 +3920,10 @@
             const transactions = userData.transactions || [];
             const csvContent = "data:text/csv;charset=utf-8,"
                 + "Date,Type,Amount,Status,Reference,Details\n"
-                + transactions.map(t => `${t.createdAt.toLocaleDateString()},${t.type},${t.amount},${t.status},${t.reference},${t.details || 'N/A'}`).join("\n");
+                + transactions.map(t => {
+                    const date = t.createdAt?.toDate ? t.createdAt.toDate() : new Date(t.createdAt);
+                    return `${date.toLocaleDateString()},${t.type},${t.amount},${t.status},${t.reference},${t.details || 'N/A'}`;
+                }).join("\n");
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
@@ -4066,9 +3961,10 @@
                     investment: 'fa-chart-line',
                     profit: 'fa-arrow-up'
                 };
+                const date = transaction.createdAt?.toDate ? transaction.createdAt.toDate() : new Date(transaction.createdAt);
                 return `
                     <tr>
-                        <td>${transaction.createdAt.toLocaleDateString()}</td>
+                        <td>${date.toLocaleDateString()}</td>
                         <td>
                             <i class="fas ${typeIcon[transaction.type] || 'fa-exchange-alt'}"></i>
                             ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
@@ -4085,6 +3981,9 @@
         function viewInvestmentDetails(investmentId) {
             const investment = userData.investments.find(inv => inv.id === investmentId);
             if (investment) {
+                const startDate = investment.startDate?.toDate ? investment.startDate.toDate() : new Date(investment.startDate);
+                const endDate = investment.endDate?.toDate ? investment.endDate.toDate() : new Date(investment.endDate);
+
                 Swal.fire({
                     title: investment.planName,
                     html: `
@@ -4097,8 +3996,8 @@
                             <p><strong>Current Profit:</strong> ${formatCurrency(investment.currentProfit)}</p>
                             <p><strong>Expected Return:</strong> ${formatCurrency(investment.expectedReturn)}</p>
                             <p><strong>Status:</strong> ${investment.status}</p>
-                            <p><strong>Start Date:</strong> ${investment.startDate.toLocaleDateString()}</p>
-                            <p><strong>End Date:</strong> ${investment.endDate.toLocaleDateString()}</p>
+                            <p><strong>Start Date:</strong> ${startDate.toLocaleDateString()}</p>
+                            <p><strong>End Date:</strong> ${endDate.toLocaleDateString()}</p>
                         </div>
                     `,
                     icon: 'info',
@@ -4110,6 +4009,8 @@
         function viewDepositDetails(depositId) {
             const deposit = userData.deposits.find(dep => dep.id === depositId);
             if (deposit) {
+                const date = deposit.createdAt?.toDate ? deposit.createdAt.toDate() : new Date(deposit.createdAt);
+
                 Swal.fire({
                     title: 'Deposit Details',
                     html: `
@@ -4120,7 +4021,7 @@
                             <p><strong>Wallet Address:</strong> ${deposit.walletAddress}</p>
                             <p><strong>Transaction Hash:</strong> ${deposit.transactionHash || 'Not provided'}</p>
                             <p><strong>Status:</strong> ${deposit.status}</p>
-                            <p><strong>Date:</strong> ${deposit.createdAt.toLocaleDateString()}</p>
+                            <p><strong>Date:</strong> ${date.toLocaleDateString()}</p>
                         </div>
                     `,
                     icon: 'info',
@@ -4132,6 +4033,9 @@
         function viewTicketDetails(ticketId) {
             const ticket = userData.supportTickets.find(t => t.id === ticketId);
             if (ticket) {
+                const createdDate = ticket.createdAt?.toDate ? ticket.createdAt.toDate() : new Date(ticket.createdAt);
+                const updatedDate = ticket.lastUpdated?.toDate ? ticket.lastUpdated.toDate() : new Date(ticket.lastUpdated);
+
                 Swal.fire({
                     title: 'Support Ticket',
                     html: `
@@ -4140,8 +4044,8 @@
                             <p><strong>Subject:</strong> ${ticket.subject}</p>
                             <p><strong>Message:</strong> ${ticket.message}</p>
                             <p><strong>Status:</strong> ${ticket.status}</p>
-                            <p><strong>Created:</strong> ${ticket.createdAt.toLocaleDateString()}</p>
-                            <p><strong>Last Updated:</strong> ${ticket.lastUpdated.toLocaleDateString()}</p>
+                            <p><strong>Created:</strong> ${createdDate.toLocaleDateString()}</p>
+                            <p><strong>Last Updated:</strong> ${updatedDate.toLocaleDateString()}</p>
                         </div>
                     `,
                     icon: 'info',
@@ -4215,32 +4119,6 @@
 
         function goToHomepage() {
             window.open('https://cornerstonecapital.co.uk', '_blank');
-        }
-
-        function handleLogout() {
-            Swal.fire({
-                title: 'Sign Out',
-                text: 'Are you sure you want to sign out?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: 'var(--primary)',
-                cancelButtonColor: 'var(--error)',
-                confirmButtonText: 'Yes, sign out'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Clear user data
-                    currentUser = null;
-                    userData = null;
-
-                    // Sign out from Firebase if available
-                    if (auth && auth.signOut) {
-                        auth.signOut();
-                    }
-
-                    // Redirect to homepage
-                    window.location.href = 'https://cornerstonecapital.co.uk';
-                }
-            });
         }
     </script>
 </body>
